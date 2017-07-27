@@ -1,0 +1,29 @@
+digit - semantic
+
+4 - distance drived (km) (day)
+7 - accumulate discance (km)
+14 - YYMMDDhhmmssss (ssss: 0.01 sec)
+3 - speed in kph
+4 - RPM
+1 - break on/off (1: on, 0: off)
+9 - GPS (X) * 1000000
+9 - GPS (Y) * 1000000
+3 - GPS azimuth (degrees)
+6 - Acceleration (X), (m/sec2)
+6 - Acceleration (Y), (m/sec2)
+2 - Condition code
+
+
+Contdition codes:
+
+00: normal
+11: GPS error
+12: speed sensor error
+13: RPM sensor error
+14: break sensor error
+21: sensor input device error
+22: sensor output device error
+31: data output device error
+32: communication device error
+41: distance estimation error
+99: power supply error

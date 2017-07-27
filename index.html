@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Taxi trajectory</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="./static/font-awesome.min.css">
+    <link href="./static/css/leaflet.css" rel="stylesheet" type="text/css" />
+    <!-- <script src="http://cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.js"></script> -->
+    <script src="./static/js/leaflet.js"></script>
+    <script src="./static/js/L.Polyline.SnakeAnim.js"></script>
+    <script src="./static/js/jquery-1.10.2.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <style>
+    /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+
+    #map {
+        height: 100%;
+    }
+    /* Optional: Makes the sample page fill the window. */
+
+    html,
+    body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    /* line 3, ../sass/custom.scss */
+    .loading-container{
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(238, 238, 238, 0.1);
+      z-index: 99999
+    }
+    .loading-item{
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-left: -150px;
+      margin-top: -200px;
+      width: 300px;
+      height: 200px;
+      background-image: url(./static/css/images/loading.gif);
+      background-size: contain;
+      transition: all 0.5s ease-in-out;
+      -webkit-transition: all 0.5s ease-in-out
+    }
+    .hide{
+      display: none;
+    }
+    .action {
+        position: absolute;
+        top: 0;
+        z-index: 1040;
+        right: 0;
+    }
+
+    .action .draw-path {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        padding: 10px 15px;
+        width: 110px;
+        border-radius: 10px;
+        border: none;
+        background: #237cc9;
+        color: #FFF;
+        font-size: 14px;
+    }
+
+    .action .draw-path:hover {
+        cursor: pointer;
+        background: #0570cc;
+        ;
+    }
+
+    .action .draw-path.deactive {
+        background: #CCC;
+    }
+
+    .action .draw-path.deactive:hover {
+        cursor: not-allowed;
+        background: #CCC;
+    }
+
+    .action .taxi-slt {
+        position: absolute;
+        top: 10px;
+        right: 130px;
+        height: 35px;
+        border: 1px solid #ccc;
+        padding: 0px 10px;
+        border-radius: 5px;
+    }
+
+    .help {
+        position: absolute;
+        z-index: 1040;
+        bottom: 10px;
+        right: 10px;
+        border-radius: 25px;
+        width: 50px;
+        height: 50px;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading-container hide"><div class='loading-item'>&nbsp</div></div> 
+    <div id="map"></div>
+    <div class='action'>
+        <select class='taxi-slt'>
+            <option value='0'>-- Please choose a taxi --</option>
+            <option value='1'>Taxi 01</option>
+            <option value='2'>Taxi 02</option>
+            <option value='3'>Taxi 03</option>
+        </select>
+        <button onclick="animate_path()" class='draw-path deactive'>Simulate</button>
+    </div>
+    <div class="modal fade" tabindex="-1" role="dialog" id="help-content" >
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">How to use?</h4>
+                </div>
+                <div class="modal-body">
+                    <ul>
+                      <li>Click on the select options to choose a taxi</li>
+                      <li>Click "Simulate" button to draw the path of this</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+            <!-- /.modal-content -->
+        </div>
+        <!-- /.modal-dialog -->
+    </div>
+    <!-- /.modal -->
+    <button class='help btn btn-default' data-toggle="modal" data-target="#help-content"><i class='fa fa-question'>&nbsp;</i></button>
+    <script>
+    base_url = './static/css/images'
+    path = null
+    map = null
+    start = null
+    end = null
+    dp = $('.draw-path')
+    taxi_select = $('.taxi-slt')
+    helpbt = $('.help')
+    loading_container = $('#loading')
+    // This example creates a 2-pixel-wide red polyline showing the path of William
+    // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
+    // Brisbane, Australia.
+    // list = ['20120101_334805_01.json', '20120101_342003.json', '20120101_342019.json']
+
+    function animate_path() {
+        if (path)
+            path.snakeIn()
+    }
+
+    function enableLoading(){
+      loading_container.removeClass('hide')
+    }
+
+    function disableLoading(){
+      loading_container.addClass('hide')
+    }
+
+
+    function disable_simulate() {
+        dp.addClass('deactive')
+    }
+
+    function enable_simulate() {
+        dp.removeClass('deactive')
+    }
+
+    function get_data(taxi) {
+        enableLoading()
+        disable_simulate()
+        $.post('/get_path', {
+            taxi: taxi
+        }, function(res) {
+            clear_map()
+            disableLoading()
+            var end_icon = L.icon({
+                iconUrl: base_url + '/end_45_v.png',
+                iconSize: [25, 41],
+                iconAnchor: [11, 39]
+            })
+            latlngs = res.data
+            path = L.polyline(latlngs);
+
+            map.fitBounds(L.latLngBounds(latlngs));
+
+            start = L.marker(latlngs[0])
+            map.addLayer(start);
+
+            end = L.marker(latlngs[latlngs.length - 1], {
+                icon: end_icon
+            })
+            map.addLayer(end);
+
+            map.addLayer(path);
+
+            enable_simulate()
+
+        }, 'json').fail(function() {
+            alert('An error occured during processing')
+            if (path)
+                enable_simulate()
+            else
+                taxi_select.val(0)
+        });
+    }
+
+    function clear_map() {
+        if (path)
+            map.removeLayer(path)
+        if (end)
+            map.removeLayer(end)
+        if (start)
+            map.removeLayer(start)
+    }
+
+    function initLeaflet() {
+        var map = L.map('map', {
+            center: [37.5717, 126.93923],
+            zoom: 11
+        });
+        var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
+        }).addTo(map);
+        return map
+    }
+    $(document).ready(function() {
+        map = initLeaflet()
+        taxi_select.change(function() {
+            val = parseInt(taxi_select.val())
+            if (val)
+                get_data(val - 1)
+        })
+    });
+    </script>
+</body>
+
+</html>
