@@ -2,8 +2,11 @@ import os, os.path
 import string
 
 import cherrypy
-import get_data as g
+
 import json
+
+import host as h
+import get_data as g
 
 
 class WebApp(object):
@@ -26,6 +29,12 @@ class Router(object):
 
 
 if __name__ == '__main__':
+
+    cherrypy.config.update({
+        'server.socket_host': h.host,
+        'server.socket_port': h.port,
+    })
+
     conf = {
         '/': {
             'tools.sessions.on': True,
