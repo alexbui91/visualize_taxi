@@ -23,9 +23,11 @@ class Router(object):
     @cherrypy.tools.accept(media='text/plain')
     @cherrypy.expose
     def POST(self, taxi=0):
-        print(int(taxi))
-        data = g.get_all_latlng(int(taxi))
-        return json.dumps({'data': data})
+        idx = int(taxi)
+        data = g.get_all_latlng(idx)
+        speed = g.get_average_speed(idx)
+        distance = g.get_total_running(idx)
+        return json.dumps({'data': data, 'avg_speed': speed.speed, 'total_distance' : distance.distance})
 
 
 if __name__ == '__main__':

@@ -12,7 +12,8 @@ for index, f in enumerate(p.files):
     name = "".join(name[:-1])
     text_file = sc.textFile('%s/%s' % (raw_path, f))
     select = text_file.map(lambda line: line.split(",")) \
-                    .filter(lambda line: len(line)>1) 
-    df = spark.createDataFrame(select, p.header)
-    df.write.format("parquet").save("%s.parquet" % name, mode='overwrite')
+                    # .filter(lambda line: len(line)>1) 
+    print(select.collect()[-1])
+    # df = spark.createDataFrame(select, p.header)
+    # df.write.format("parquet").save("%s.parquet" % name, mode='overwrite')
     # select.saveAsTextFile('%s/%s' % (data_path, name))

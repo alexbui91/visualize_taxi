@@ -108,6 +108,9 @@
         width: 50px;
         height: 50px;
     }
+    ul.map-popup{
+      padding-left: 10px;
+    }
     </style>
 </head>
 
@@ -156,6 +159,11 @@
     taxi_select = $('.taxi-slt')
     helpbt = $('.help')
     loading_container = $('#loading')
+    var end_icon = L.icon({
+        iconUrl: base_url + '/end_45_v.png',
+        iconSize: [25, 41],
+        iconAnchor: [11, 39]
+    })
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -164,6 +172,8 @@
     function animate_path() {
         if (path)
             path.snakeIn()
+        if (end)
+            map.removeLayer(end)
     }
 
     function enableLoading(){
@@ -177,6 +187,8 @@
 
     function disable_simulate() {
         dp.addClass('deactive')
+        if(path)
+            path.off('snakeend')
     }
 
     function enable_simulate() {
@@ -189,27 +201,33 @@
         $.post('/get_path', {
             taxi: taxi
         }, function(res) {
+          console.log(res)
             clear_map()
             disableLoading()
-            var end_icon = L.icon({
-                iconUrl: base_url + '/end_45_v.png',
-                iconSize: [25, 41],
-                iconAnchor: [11, 39]
-            })
+            
             latlngs = res.data
             path = L.polyline(latlngs);
-
+            
             map.fitBounds(L.latLngBounds(latlngs));
 
             start = L.marker(latlngs[0])
             map.addLayer(start);
 
+            var avg_speed = Math.round(res.avg_speed*100)/100;
             end = L.marker(latlngs[latlngs.length - 1], {
                 icon: end_icon
-            })
-            map.addLayer(end);
+            }).bindPopup('<ul class="map-popup"> \
+                          <li>Total distance: '+res.total_distance+' km</li> \
+                          <li>Average speed: '+avg_speed+' km/h</li> \
+                          </ul>');
 
+            map.addLayer(end);
             map.addLayer(path);
+
+            path.on('snakeend', function(ev){
+              if(end)
+                map.addLayer(end);
+            });
 
             enable_simulate()
 

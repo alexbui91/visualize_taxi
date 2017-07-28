@@ -38,6 +38,26 @@ def get_all_latlng(name):
     return data
 
 
+def get_average_speed(name):
+    df = load_spark(name)
+    data = df.select(df.speed_in_kph.cast('int')).agg(avg("speed_in_kph").alias("speed")) \
+            .head()
+    return data
+
+
+def get_total_running(name):
+    df = load_spark(name)
+    data = df.select(df.distance_drived.cast('int')).agg(last("distance_drived").alias("distance")) \
+            .head()
+    return data
+
+
+def get_all(name):
+    df = load_spark(name)
+    data = df.select('time').collect()
+    print(data)
+
+
 if __name__ == "__main__":
     # preload_vocabs()
     parser = argparse.ArgumentParser()
