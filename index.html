@@ -210,7 +210,7 @@
               taxi: taxi
           }, function(res) {
               render_data(res)
-              localStorage.setItem(key, JSON.stringify(res))
+              saveStorage(key, res)
           }, 'json').fail(function() {
               alert('An error occured during processing')
               if (path)
@@ -225,11 +225,21 @@
 
     function storage(key){
       var data = null
+      key += get_key_time()
       if(localStorage.key)
         data = JSON.parse(localStorage.getItem(key))
       return data
     }
 
+    function saveStorage(key, value){
+      key += get_key_time()
+      localStorage.setItem(key, JSON.stringify(value))
+    }
+
+    function get_key_time(){
+      var now = new Date()
+      return now.getYear() + '' + now.getMonth() + '' + now.getDate() + '' + now.getHours()
+    }
     function render_data(res){
         clear_map()
         disableLoading()
