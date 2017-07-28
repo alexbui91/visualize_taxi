@@ -194,50 +194,71 @@
     function enable_simulate() {
         dp.removeClass('deactive')
     }
+    
 
     function get_data(taxi) {
         enableLoading()
         disable_simulate()
-        $.post('/get_path', {
-            taxi: taxi
-        }, function(res) {
-            clear_map()
-            disableLoading()
-            
-            latlngs = res.data
-            path = L.polyline(latlngs);
-            
-            map.fitBounds(L.latLngBounds(latlngs));
+        var key = 'taxi' + taxi
+        var data = storage(key)
+        if(data){
+          setTimeout(function(){
+            render_data(data)
+          }, 500)
+        }else{
+          $.post('/get_path', {
+              taxi: taxi
+          }, function(res) {
+              render_data(res)
+              localStorage.setItem(key, JSON.stringify(res))
+          }, 'json').fail(function() {
+              alert('An error occured during processing')
+              if (path)
+                  enable_simulate()
+              else
+                  taxi_select.val(0)
+                  disableLoading()
+          });
+        }
+        
+    }
 
-            start = L.marker(latlngs[0])
-            map.addLayer(start);
+    function storage(key){
+      var data = null
+      if(localStorage.key)
+        data = JSON.parse(localStorage.getItem(key))
+      return data
+    }
 
-            var avg_speed = Math.round(res.avg_speed*100)/100;
-            end = L.marker(latlngs[latlngs.length - 1], {
-                icon: end_icon
-            }).bindPopup('<ul class="map-popup"> \
-                          <li>Total distance: '+res.total_distance+' km</li> \
-                          <li>Average speed: '+avg_speed+' km/h</li> \
-                          </ul>');
+    function render_data(res){
+        clear_map()
+        disableLoading()
+        
+        latlngs = res.data
+        path = L.polyline(latlngs);
+        
+        map.fitBounds(L.latLngBounds(latlngs));
 
+        start = L.marker(latlngs[0])
+        map.addLayer(start);
+
+        var avg_speed = Math.round(res.avg_speed*100)/100;
+        end = L.marker(latlngs[latlngs.length - 1], {
+            icon: end_icon
+        }).bindPopup('<ul class="map-popup"> \
+                      <li>Total distance: '+res.total_distance+' km</li> \
+                      <li>Average speed: '+avg_speed+' km/h</li> \
+                      </ul>');
+
+        map.addLayer(end);
+        map.addLayer(path);
+
+        path.on('snakeend', function(ev){
+          if(end)
             map.addLayer(end);
-            map.addLayer(path);
-
-            path.on('snakeend', function(ev){
-              if(end)
-                map.addLayer(end);
-            });
-
-            enable_simulate()
-
-        }, 'json').fail(function() {
-            alert('An error occured during processing')
-            if (path)
-                enable_simulate()
-            else
-                taxi_select.val(0)
-                disableLoading()
         });
+
+        enable_simulate()
     }
 
     function clear_map() {
