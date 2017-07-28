@@ -40,21 +40,23 @@ def get_all_latlng(name):
 
 def get_average_speed(name):
     df = load_spark(name)
-    data = df.select(df.speed_in_kph.cast('int')).agg(avg("speed_in_kph").alias("speed")) \
+    data = df.select(df.speed_in_kph.cast('int')) \
+            .agg(avg("speed_in_kph").alias("speed")) \
             .head()
     return data
 
 
 def get_total_running(name):
     df = load_spark(name)
-    data = df.select(df.distance_drived.cast('int')).agg(last("distance_drived").alias("distance")) \
+    data = df.select(df.distance_drived.cast('int')) \
+            .agg(last("distance_drived").alias("distance")) \
             .head()
     return data
 
 
 def get_all(name):
     df = load_spark(name)
-    data = df.select('time').collect()
+    data = df.orderBy(df.distance_drived.asc()).collect()
     print(data)
 
 
