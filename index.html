@@ -243,7 +243,7 @@
       for (i = 0; i < window.localStorage.length; i++) {
           key = window.localStorage.key(i);
           if(key.startsWith(oldkey))
-            localStorage.removeItem(oldkey)
+            localStorage.removeItem(key)
       }
     }
 
