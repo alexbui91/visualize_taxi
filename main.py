@@ -34,13 +34,14 @@ class Router(object):
 
 if __name__ == '__main__':
 
-    if not 'pyspark' in sys.modules:
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        activate_this = "%s/.env/bin/activate_this.py" % dir_path
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    activate_this = "%s/.env/bin/activate_this.py" % dir_path
+
+    if os.path.exists(activate_this):
         execfile(activate_this, dict(__file__=activate_this))
 
     import get_data as g
-        
+
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
