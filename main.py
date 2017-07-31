@@ -8,7 +8,7 @@ import cherrypy
 import json
 
 import host as h
-import get_data as g
+
 
 
 class WebApp(object):
@@ -39,6 +39,8 @@ if __name__ == '__main__':
         activate_this = "%s/.env/bin/activate_this.py" % dir_path
         execfile(activate_this, dict(__file__=activate_this))
 
+    import get_data as g
+        
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
