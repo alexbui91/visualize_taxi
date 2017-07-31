@@ -8,6 +8,7 @@ import cherrypy
 import json
 
 import host as h
+import get_data as g
 
 
 class WebApp(object):
@@ -35,7 +36,7 @@ if __name__ == '__main__':
 
     if not 'pyspark' in sys.modules:
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        activate_this = "%s/.env/bin/activate" % dir_path
+        activate_this = "%s/.env/bin/activate_this.py" % dir_path
         execfile(activate_this, dict(__file__=activate_this))
 
     cherrypy.config.update({
