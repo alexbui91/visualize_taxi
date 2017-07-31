@@ -8,7 +8,6 @@ import cherrypy
 import json
 
 import host as h
-import get_data as g
 
 
 class WebApp(object):

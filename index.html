@@ -233,8 +233,18 @@
     }
 
     function saveStorage(key, value){
+      removeOldValue(key)
       key += get_key_time()
-      localStorage.setItem(key, JSON.stringify(value))
+      localStorage.setItem(key, JSON.stringify(value))\
+    }
+
+    function removeOldValue(oldkey){
+      var results = [];
+      for (i = 0; i < window.localStorage.length; i++) {
+          key = window.localStorage.key(i);
+          if(key.startsWith(oldkey))
+            localStorage.removeItem(oldkey)
+      }
     }
 
     function get_key_time(){
