@@ -244,7 +244,10 @@
       for (i = 0; i < window.localStorage.length; i++) {
           key = window.localStorage.key(i);
           if(key.startsWith(oldkey))
-            localStorage.removeItem(key)
+            results.push(key)
+      }
+      for(x in results){
+        localStorage.removeItem(results[x])
       }
     }
 
