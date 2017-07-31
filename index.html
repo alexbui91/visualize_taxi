@@ -235,7 +235,7 @@
     function saveStorage(key, value){
       removeOldValue(key)
       key += get_key_time()
-      localStorage.setItem(key, JSON.stringify(value))\
+      localStorage.setItem(key, JSON.stringify(value))
     }
 
     function removeOldValue(oldkey){
