@@ -16,7 +16,11 @@ class WebApp(object):
     @cherrypy.expose
     def index(self):
         return open('index.html')
-    index.exposed = True
+
+    @cherrypy.expose
+    def heatmap(self):
+        return open('heatmap.html')
+    # index.exposed = True
 
 
 @cherrypy.expose

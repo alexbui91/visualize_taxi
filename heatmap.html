@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Taxi trajectory</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="./static/css/font-awesome.min.css">
+    <link href="./static/css/leaflet.css" rel="stylesheet" type="text/css" />
+    <link href="./static/css/bootstrap-slider.min.css" rel="stylesheet" type="text/css" />
+    <!-- <script src="http://cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.js"></script> -->
+    <script src="./static/js/leaflet.js"></script>
+    <script src="./static/js/L.Polyline.SnakeAnim.js"></script>
+    <script src="./static/js/jquery-1.10.2.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <script src="./static/js/bootstrap-slider.min.js"></script>
+    <script src="./static/js/heatmap.min.js"></script>
+    <script src="./static/js/leaflet-heatmap.js"></script>
+    
+    <style>
+    /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+
+    @media (min-width: 1200px) {
+        .container {
+            width: 100em;
+        }
+    }
+
+    #map {
+        height: 600px;
+    }
+    /* Optional: Makes the sample page fill the window. */
+
+    html,
+    body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #f3f3f3;
+    }
+    /* line 3, ../sass/custom.scss */
+
+    .loading-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(238, 238, 238, 0.1);
+        z-index: 99999
+    }
+
+    .loading-item {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-left: -150px;
+        margin-top: -200px;
+        width: 300px;
+        height: 200px;
+        background-image: url(./static/css/images/loading.gif);
+        background-size: contain;
+        transition: all 0.5s ease-in-out;
+        -webkit-transition: all 0.5s ease-in-out
+    }
+
+    .hide {
+        display: none;
+    }
+
+    .action {
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        padding: 20px 15px;
+    }
+    .action h3{
+        margin-top: 0;
+        font-size: 18px;
+    }
+    .action .slider.slider-horizontal {
+        width: 100%;
+    }
+    .time-range .slider-selection{
+      background: #cbcbcb
+    }
+
+    .slider-handle.custom::before {
+        color: #333333;   
+    }
+    .time-range-label{
+      position: relative;
+    }
+    .time-range-label{
+      /*font-size: 12px;*/
+    }
+   /* .time-range-label .start{
+      position: absolute;
+      left: -15px;
+    }
+    .time-range-label .end{
+      position: absolute;
+      right: -15px;
+    }*/
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading-container hide">
+        <div class='loading-item'>&nbsp</div>
+    </div>
+    <div class='container'>
+        <h1 class='map-title'>Seoul Public Transportation Visualization</h1>
+        <div class='row'>
+            <div class='col-lg-9 col-md-8 col-sm-12 col-xs-12'>
+                <div id="map"></div>
+            </div>
+            <div class='col-lg-3 col-md-4 col-sm-12 col-xs-12'>
+                <div class='action'>
+                    <h3>Filter Options</h3>
+                    <form class="form-horizontal">
+                        <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Day type</label>
+                            <div class="col-sm-8">
+                                <select class="form-control" id='day-filter'>
+                                    <option value='0'>All</option>
+                                    <option value='1'>Weekday</option>
+                                    <option value='2'>Weekend</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Time range</label>
+                            <div class="col-sm-8 time-range">
+                                <input id="time-range" type="text" value="" 
+                                  data-slider-min="0" data-slider-max="48" data-slider-step="1"
+                                  data-slider-value="[0,48]"
+                                  data-slider-handle="custom"/>
+                                <div class='time-range-label'>
+                                  <span class='start'>00:00</span>&nbsp-&nbsp<span class="end">24:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Transport type</label>
+                            <div class="col-sm-8">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" value="0" class='transport-type' checked> Taxi
+                                    </label>
+                                </div>
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" value="1" class='transport-type' checked> Night Bus
+                                    </label>
+                                </div>
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" value="2" class='transport-type' checked> Bus
+                                    </label>
+                                </div>
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" value="3" class='transport-type' checked> Subway
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Usage</label>
+                            <div class="col-sm-8">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" value="0" class='usage' checked> Arrival
+                                    </label>
+                                </div>
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" value="1" class='usage' checked> Departure
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    base_url = './static/css/images'
+    path = null
+    map = null
+    start = null
+    end = null
+    dp = $('.draw-path')
+    taxi_select = $('.taxi-slt')
+    helpbt = $('.help')
+    loading_container = $('#loading')
+    var end_icon = L.icon({
+        iconUrl: base_url + '/end_45_v.png',
+        iconSize: [25, 41],
+        iconAnchor: [11, 39]
+    })
+    // This example creates a 2-pixel-wide red polyline showing the path of William
+    // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
+    // Brisbane, Australia.
+    // list = ['20120101_334805_01.json', '20120101_342003.json', '20120101_342019.json']
+    var testData = {
+      data: [{"lat": 37.531765, "lng": 127.038958, "count": 1}, {"lat": 36.5317, "lng": 127.03923, "count": 6}]
+    };
+    function animate_path() {
+        if (path)
+            path.snakeIn()
+        if (end)
+            map.removeLayer(end)
+    }
+
+    function enableLoading() {
+        loading_container.removeClass('hide')
+    }
+
+    function disableLoading() {
+        loading_container.addClass('hide')
+    }
+
+
+    function disable_simulate() {
+        dp.addClass('deactive')
+        if (path)
+            path.off('snakeend')
+    }
+
+    function enable_simulate() {
+        dp.removeClass('deactive')
+    }
+
+
+    function get_data(taxi) {
+        enableLoading()
+        disable_simulate()
+        var key = 'taxi' + taxi
+        var data = storage(key)
+        if (data) {
+            setTimeout(function() {
+                render_data(data)
+            }, 500)
+        } else {
+            $.post('/get_path', {
+                taxi: taxi
+            }, function(res) {
+                render_data(res)
+                saveStorage(key, res)
+            }, 'json').fail(function() {
+                alert('An error occured during processing')
+                if (path)
+                    enable_simulate()
+                else
+                    taxi_select.val(0)
+                disableLoading()
+            });
+        }
+
+    }
+
+    function storage(key) {
+        var data = null
+        key += get_key_time()
+        if (localStorage.key)
+            data = JSON.parse(localStorage.getItem(key))
+        return data
+    }
+
+    function saveStorage(key, value) {
+        removeOldValue(key)
+        key += get_key_time()
+        console.log(key)
+        localStorage.setItem(key, JSON.stringify(value))
+    }
+
+    function removeOldValue(oldkey) {
+        var results = [];
+        for (i = 0; i < window.localStorage.length; i++) {
+            key = window.localStorage.key(i);
+            if (key.startsWith(oldkey))
+                results.push(key)
+        }
+        for (x in results) {
+            localStorage.removeItem(results[x])
+        }
+    }
+
+    function get_key_time() {
+        var now = new Date()
+        return now.getYear() + '' + now.getMonth() + '' + now.getDate() + '' + now.getHours()
+    }
+
+    function render_data(res) {
+        clear_map()
+        disableLoading()
+
+        latlngs = res.data
+        path = L.polyline(latlngs);
+
+        map.fitBounds(L.latLngBounds(latlngs));
+
+        start = L.marker(latlngs[0])
+        map.addLayer(start);
+
+        var avg_speed = Math.round(res.avg_speed * 100) / 100;
+        end = L.marker(latlngs[latlngs.length - 1], {
+            icon: end_icon
+        }).bindPopup('<ul class="map-popup"> \
+                      <li>Total distance: ' + res.total_distance + ' km</li> \
+                      <li>Average speed: ' + avg_speed + ' km/h</li> \
+                      </ul>');
+
+        map.addLayer(end);
+        map.addLayer(path);
+
+        path.on('snakeend', function(ev) {
+            if (end)
+                map.addLayer(end);
+        });
+
+        enable_simulate()
+    }
+
+    function clear_map() {
+    }
+
+    function initLeaflet() {
+        var map = L.map('map', {
+            center: [37.5717, 126.93923],
+            zoom: 8
+        });
+        var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
+        }).addTo(map);
+        return map
+    }
+    function initHeat(){
+        var cfg = {
+          // radius should be small ONLY if scaleRadius is true (or small radius is intended)
+          // if scaleRadius is false it will be the constant radius used in pixels
+          "radius": 0.1,
+          "maxOpacity": .8, 
+          // scales the radius based on map zoom
+          "scaleRadius": true, 
+          // if set to false the heatmap uses the global maximum for colorization
+          // if activated: uses the data maximum within the current map boundaries 
+          //   (there will always be a red spot with useLocalExtremas true)
+          "useLocalExtrema": true,
+          // which field name in your data represents the latitude - default "lat"
+          latField: 'lat',
+          // which field name in your data represents the longitude - default "lng"
+          lngField: 'lng',
+          // which field name in your data represents the data value - default "value"
+          valueField: 'count'
+        };
+        return new HeatmapOverlay(cfg);
+    }
+    function process_slider(value){
+        arr = []
+        for (x in value){
+          arr.push(processLabel(value[x]))
+        }
+        $('.start').html(arr[0])
+        $('.end').html(arr[1])
+        return arr
+    }
+    function processLabel(value){
+      time = value / 2 
+      re = time % 2
+      h = ''
+      if(time < 10)
+        h = '0' + parseInt(time) 
+      else
+        h = '' + parseInt(time) 
+      res = h + ':'
+      if(re != 0)
+        res += '30'
+      else
+        res += '00'
+      return res
+    }
+    function getCheckBox(obj){
+      return obj.map(function(){
+        return this.value;
+      }).get();
+    }
+    function getValue(){
+      t = $('#time-range').slider('getValue')
+      tf = process_slider(t)
+      trans = getCheckBox($('.transport-type:checked'))
+      us = getCheckBox($('.usage:checked'))
+      d = $('#day-filter').val()
+      d = d <= 2 ? d : 0
+      return {
+        time: tf,
+        date: d,
+        transport: trans,
+        usage: us
+      }
+    }
+    $(document).ready(function() {
+        // https://github.com/seiyria/bootstrap-slider
+        // *https://www.patrick-wied.at/static/heatmapjs/
+        // https://github.com/Leaflet/Leaflet.heat
+        $('#time-range').slider({
+          'reversed': false,
+          formatter: process_slider
+        })
+        map = initLeaflet()
+        heat = initHeat()
+        heat.addTo(map)
+        heat.setData(testData);
+        taxi_select.change(function() {
+            val = parseInt(taxi_select.val())
+            if (val)
+                get_data(val - 1)
+        })
+    });
+    </script>
+</body>
+
+</html>
