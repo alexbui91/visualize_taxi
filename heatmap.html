@@ -203,7 +203,7 @@
     helpbt = $('.help')
     loading_container = $('#loading')
     waiting_for_map = 0
-  
+    zoom = 8
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -265,7 +265,9 @@
         if(data){
           data = data.map(function (p) { return [p.lat, p.lng, p.count] });
         }
-        return L.heatLayer(data).addTo(map);
+        return L.heatLayer(data, {
+          radius: 8
+        }).addTo(map);
     }
     function add_data_to_heat(layer, data){
       // dynamic add data to heat layer
@@ -284,7 +286,7 @@
     }
     function processLabel(value){
       time = value / 2 
-      re = time % 2
+      re = value % 2
       h = ''
       if(time < 10)
         h = '0' + parseInt(time) 
@@ -306,15 +308,18 @@
 
     function init_map_events(m){
       // init map event for mouse move, zoom, ...
-      m.on('zoom touchZoom', function(){
+      m.on('zoomend', function(){
         clearTimeout(waiting_for_map)
+        waiting_for_map = setTimeout(update_data, 1000)
       })
-      m.on('moveend', function() { 
+      // m.on('moveend', function() { 
+      //   clearTimeout(waiting_for_map)
+      //   waiting_for_map = setTimeout(update_data, 1000)
+      // });
+      m.on('dragend', function() { 
+        clearTimeout(waiting_for_map)
         waiting_for_map = setTimeout(update_data, 1000)
       });
-      m.on('click', function(){
-        console.log(1)
-      })
     }
     function update_data(){
       filter = get_filter()
@@ -353,8 +358,11 @@
             disableLoading()
             if(res.data && res.data.length){
               latlngs = res.data
-              map.fitBounds(L.latLngBounds(latlngs));
-              heat.setLatLngs(latlngs)  
+              console.log(res.data.length)
+              // map.fitBounds(L.latLngBounds(latlngs));
+              heat.setLatLngs(latlngs)
+            }else{
+              heat.setLatLngs([])
             }
         }, 'json').fail(function(e) {
             alert('An error occured during processing')
