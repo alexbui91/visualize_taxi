@@ -1,2 +1,2 @@
-host="localhost"
-port=8080
+host="147.47.206.14"
+port=31080
