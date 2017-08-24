@@ -135,8 +135,7 @@
                                   data-slider-value="0"
                                   data-slider-min="0" 
                                   data-slider-max="10000" 
-                                  data-slider-step="500"
-                                  data-slider-handle="custom"/>
+                                  data-slider-step="500"/>
                                 <div class='time-range-label'>
                                   <span class='threshold-value'>0</span>
                                 </div>
@@ -157,8 +156,7 @@
                             <div class="col-sm-8 time-range">
                                 <input id="time-range" type="text" value="" 
                                   data-slider-min="0" data-slider-max="48" data-slider-step="1"
-                                  data-slider-value="[0,48]"
-                                  data-slider-handle="custom"/>
+                                  data-slider-value="[0,48]"/>
                                 <div class='time-range-label'>
                                   <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
                                 </div>
@@ -442,7 +440,7 @@
         })
         map = initLeaflet()
         init_map_events(map)
-        heat = initHeat(map, testData.data)
+        heat = initHeat(map, [])
         $('#submit-filter').click(function(){
           get_data(get_filter())
         })
