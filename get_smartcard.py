@@ -94,16 +94,16 @@ def get_points(from_time, to_time, day, station_type, direction, boundary):
     
     data = cache[0]
     if direction == 0:
-        result = data.filter(filter_str).select(col("longitude").alias("lng"), col("latitude").alias("lat"), col("sum_geton").alias("count")) \
+        result = data.filter(filter_str).select(col("latitude").alias("lat"), col("longitude").alias("lng"), col("sum_geton").alias("count")) \
                  .collect()
     elif direction == 1:
-        result = data.filter(filter_str).select(col("longitude").alias("lng"), col("latitude").alias("lat"), col("sum_getoff").alias("count")) \
+        result = data.filter(filter_str).select(col("latitude").alias("lat"), col("longitude").alias("lng"), col("sum_getoff").alias("count")) \
                  .collect()
     else:
-        result = data.filter(filter_str).select(col("longitude").alias("lng"), col("latitude").alias("lat"), (col("sum_geton") + col("sum_getoff")).alias("count")) \
+        result = data.filter(filter_str).select(col("latitude").alias("lat"), col("longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")) \
                  .collect()
     print(len(result))
-    print(result[0:10])
+    #print(result[0:10])
     return result
 
 
