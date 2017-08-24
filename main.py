@@ -88,9 +88,9 @@ if __name__ == '__main__':
             'tools.staticdir.dir': './public/fonts'
         }
     }
-    #g.init_spark()
-    s.init_spark()
-    s.load_data()
+    g.init_spark()
+    # s.init_spark()
+    # s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()

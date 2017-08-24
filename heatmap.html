@@ -312,6 +312,9 @@
       m.on('moveend', function() { 
         waiting_for_map = setTimeout(update_data, 1000)
       });
+      m.on('click', function(){
+        console.log(1)
+      })
     }
     function update_data(){
       filter = get_filter()
@@ -346,14 +349,14 @@
     // send ajax post request to get new data
     function get_data(filter) {
         enableLoading()
-        $.post('/get_heat_data', filter, function (res) {
+        $.post('http://147.47.206.14:31080/get_heat_data', filter, function (res) {
             disableLoading()
             if(res.data && res.data.length){
               latlngs = res.data
               map.fitBounds(L.latLngBounds(latlngs));
               heat.setLatLngs(latlngs)  
             }
-        }, 'json').fail(function() {
+        }, 'json').fail(function(e) {
             alert('An error occured during processing')
             disableLoading()    
         });
