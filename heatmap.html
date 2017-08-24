@@ -160,7 +160,7 @@
                                   data-slider-value="[0,48]"
                                   data-slider-handle="custom"/>
                                 <div class='time-range-label'>
-                                  <span>00:00</span>&nbsp-&nbsp<span>24:00</span>
+                                  <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
                                 </div>
                             </div>
                         </div>
@@ -284,7 +284,7 @@
           data = data.map(function (p) { return [p.lat, p.lng, p.count] });
         }
         return L.heatLayer(data, {
-          radius: 8
+          radius: 10
         }).addTo(map);
     }
     function add_data_to_heat(layer, data){
