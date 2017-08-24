@@ -77,7 +77,7 @@ if __name__ == '__main__':
         '/get_heat_data': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.response_headers.on': True,
-            'tools.response_headers.headers': [('Content-Type', 'application/json')],
+            'tools.response_headers.headers': [('Content-Type', 'application/json'), ("Access-Control-Allow-Origin", '*')],
         },
         '/static': {
             'tools.staticdir.on': True,
@@ -88,9 +88,9 @@ if __name__ == '__main__':
             'tools.staticdir.dir': './public/fonts'
         }
     }
-    g.init_spark()
-    # s.init_spark()
-    # s.load_data()
+    # g.init_spark()
+    s.init_spark()
+    s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
