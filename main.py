@@ -44,8 +44,8 @@ class HeatMap(object):
     def POST(self, tfrom=0, tto=0, date=0, station_type="[0,1,2,3]", usage=2, boundary="[]"):
         st = json.loads(station_type)
         bd = json.loads(boundary)
-        # data = g.get_points(tfrom, tto, date, st, usage, bd)
-        return json.dumps({'data': {}})
+        data = s.get_points(tfrom, tto, date, st, usage, bd)
+        return json.dumps({'data': data})
 
 
 if __name__ == '__main__':
@@ -57,6 +57,7 @@ if __name__ == '__main__':
         execfile(activate_this, dict(__file__=activate_this))
 
     import get_data as g
+    import get_smartcard as s
 
     cherrypy.config.update({
         'server.socket_host': h.host,
@@ -87,7 +88,9 @@ if __name__ == '__main__':
             'tools.staticdir.dir': './public/fonts'
         }
     }
-    g.init_spark()
+    #g.init_spark()
+    s.init_spark()
+    s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
