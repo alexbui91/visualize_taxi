@@ -58,14 +58,14 @@ def preprocessing(data):
             .option("header", "true") \
             .option("inferSchema", "true") \
             .option("encoding", "UTF-8") \
-            .load("/home/duclv/project/smartcard/bus_station.csv")
+            .load("./raw/bus_station.csv")
   
     subway_latlong = spark.read \
             .format("com.databricks.spark.csv") \
             .option("header", "true") \
             .option("inferSchema", "true") \
             .option("encoding", "UTF-8") \
-            .load("/home/duclv/project/smartcard/subway_station.csv")
+            .load("./raw/subway_station.csv")
 
     data6 = data5.filter("station_type == 1").join(bus_latlong, col("station_id_int") == col("station")) \
                  .select("station_id", "timerange", "station_type", "sum_geton", "sum_getoff", "latitude", "longitude")
