@@ -36,6 +36,18 @@ class Router(object):
         return json.dumps({'data': data, 'avg_speed': speed.speed, 'total_distance' : distance.distance})
 
 
+@cherrypy.expose
+class HeatMap(object):
+
+    @cherrypy.tools.accept(media='text/plain')
+    @cherrypy.expose
+    def POST(self, tfrom=0, tto=0, date=0, station_type="[0,1,2,3]", usage=2, boundary="[]"):
+        st = json.loads(station_type)
+        bd = json.loads(boundary)
+        # data = g.get_points(tfrom, tto, date, st, usage, bd)
+        return json.dumps({'data': {}})
+
+
 if __name__ == '__main__':
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -61,6 +73,11 @@ if __name__ == '__main__':
             'tools.response_headers.on': True,
             'tools.response_headers.headers': [('Content-Type', 'application/json')],
         },
+        '/get_heat_data': {
+            'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+            'tools.response_headers.on': True,
+            'tools.response_headers.headers': [('Content-Type', 'application/json')],
+        },
         '/static': {
             'tools.staticdir.on': True,
             'tools.staticdir.dir': './public'
@@ -73,4 +90,5 @@ if __name__ == '__main__':
     g.init_spark()
     webapp = WebApp()
     webapp.get_path = Router()
+    webapp.get_heat_data = HeatMap()
     cherrypy.quickstart(webapp, '/', conf)

@@ -15,8 +15,10 @@
     <script src="./static/js/jquery-1.10.2.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     <script src="./static/js/bootstrap-slider.min.js"></script>
-    <script src="./static/js/heatmap.min.js"></script>
-    <script src="./static/js/leaflet-heatmap.js"></script>
+    <!-- <script src="./static/js/heatmap.min.js"></script> -->
+    <script src="./static/js/leaflet-heat.js"></script>
+    
+    <!-- <script src="./static/js/leaflet-heatmap.js"></script> -->
     
     <style>
     /* Always set the map height explicitly to define the size of the div
@@ -103,6 +105,9 @@
       position: absolute;
       right: -15px;
     }*/
+    .submit button{
+      float: right
+    }
     </style>
 </head>
 
@@ -152,12 +157,12 @@
                                 </div>
                                 <div class="checkbox">
                                     <label>
-                                        <input type="checkbox" value="1" class='transport-type' checked> Night Bus
+                                        <input type="checkbox" value="1" class='transport-type' checked> Bus
                                     </label>
                                 </div>
                                 <div class="checkbox">
                                     <label>
-                                        <input type="checkbox" value="2" class='transport-type' checked> Bus
+                                        <input type="checkbox" value="2" class='transport-type' checked> Night Bus
                                     </label>
                                 </div>
                                 <div class="checkbox">
@@ -182,26 +187,23 @@
                                 </div>
                             </div>
                         </div>
+                        <div class='row submit'>
+                            <div class='col-lg-12'>
+                                <button type="button" id='submit-filter' class="btn btn-primary">Submit</button>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
     <script>
-    base_url = './static/css/images'
-    path = null
+
     map = null
-    start = null
-    end = null
-    dp = $('.draw-path')
-    taxi_select = $('.taxi-slt')
     helpbt = $('.help')
     loading_container = $('#loading')
-    var end_icon = L.icon({
-        iconUrl: base_url + '/end_45_v.png',
-        iconSize: [25, 41],
-        iconAnchor: [11, 39]
-    })
+    waiting_for_map = 0
+  
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -209,12 +211,6 @@
     var testData = {
       data: [{"lat": 37.531765, "lng": 127.038958, "count": 1}, {"lat": 36.5317, "lng": 127.03923, "count": 6}]
     };
-    function animate_path() {
-        if (path)
-            path.snakeIn()
-        if (end)
-            map.removeLayer(end)
-    }
 
     function enableLoading() {
         loading_container.removeClass('hide')
@@ -225,108 +221,12 @@
     }
 
 
-    function disable_simulate() {
-        dp.addClass('deactive')
-        if (path)
-            path.off('snakeend')
-    }
-
-    function enable_simulate() {
-        dp.removeClass('deactive')
-    }
-
-
-    function get_data(taxi) {
-        enableLoading()
-        disable_simulate()
-        var key = 'taxi' + taxi
-        var data = storage(key)
-        if (data) {
-            setTimeout(function() {
-                render_data(data)
-            }, 500)
-        } else {
-            $.post('/get_path', {
-                taxi: taxi
-            }, function(res) {
-                render_data(res)
-                saveStorage(key, res)
-            }, 'json').fail(function() {
-                alert('An error occured during processing')
-                if (path)
-                    enable_simulate()
-                else
-                    taxi_select.val(0)
-                disableLoading()
-            });
-        }
-
-    }
-
     function storage(key) {
         var data = null
         key += get_key_time()
         if (localStorage.key)
             data = JSON.parse(localStorage.getItem(key))
         return data
-    }
-
-    function saveStorage(key, value) {
-        removeOldValue(key)
-        key += get_key_time()
-        console.log(key)
-        localStorage.setItem(key, JSON.stringify(value))
-    }
-
-    function removeOldValue(oldkey) {
-        var results = [];
-        for (i = 0; i < window.localStorage.length; i++) {
-            key = window.localStorage.key(i);
-            if (key.startsWith(oldkey))
-                results.push(key)
-        }
-        for (x in results) {
-            localStorage.removeItem(results[x])
-        }
-    }
-
-    function get_key_time() {
-        var now = new Date()
-        return now.getYear() + '' + now.getMonth() + '' + now.getDate() + '' + now.getHours()
-    }
-
-    function render_data(res) {
-        clear_map()
-        disableLoading()
-
-        latlngs = res.data
-        path = L.polyline(latlngs);
-
-        map.fitBounds(L.latLngBounds(latlngs));
-
-        start = L.marker(latlngs[0])
-        map.addLayer(start);
-
-        var avg_speed = Math.round(res.avg_speed * 100) / 100;
-        end = L.marker(latlngs[latlngs.length - 1], {
-            icon: end_icon
-        }).bindPopup('<ul class="map-popup"> \
-                      <li>Total distance: ' + res.total_distance + ' km</li> \
-                      <li>Average speed: ' + avg_speed + ' km/h</li> \
-                      </ul>');
-
-        map.addLayer(end);
-        map.addLayer(path);
-
-        path.on('snakeend', function(ev) {
-            if (end)
-                map.addLayer(end);
-        });
-
-        enable_simulate()
-    }
-
-    function clear_map() {
     }
 
     function initLeaflet() {
@@ -339,26 +239,39 @@
         }).addTo(map);
         return map
     }
-    function initHeat(){
-        var cfg = {
-          // radius should be small ONLY if scaleRadius is true (or small radius is intended)
-          // if scaleRadius is false it will be the constant radius used in pixels
-          "radius": 0.1,
-          "maxOpacity": .8, 
-          // scales the radius based on map zoom
-          "scaleRadius": true, 
-          // if set to false the heatmap uses the global maximum for colorization
-          // if activated: uses the data maximum within the current map boundaries 
-          //   (there will always be a red spot with useLocalExtremas true)
-          "useLocalExtrema": true,
-          // which field name in your data represents the latitude - default "lat"
-          latField: 'lat',
-          // which field name in your data represents the longitude - default "lng"
-          lngField: 'lng',
-          // which field name in your data represents the data value - default "value"
-          valueField: 'count'
-        };
-        return new HeatmapOverlay(cfg);
+    
+    function initHeat(map, data){
+        // var cfg = {
+        //   // radius should be small ONLY if scaleRadius is true (or small radius is intended)
+        //   // if scaleRadius is false it will be the constant radius used in pixels
+        //   "radius": 0.05,
+        //   "maxOpacity": .8, 
+        //   // scales the radius based on map zoom
+        //   "scaleRadius": true, 
+        //   // if set to false the heatmap uses the global maximum for colorization
+        //   // if activated: uses the data maximum within the current map boundaries 
+        //   //   (there will always be a red spot with useLocalExtremas true)
+        //   "useLocalExtrema": true,
+        //   // which field name in your data represents the latitude - default "lat"
+        //   latField: 'lat',
+        //   // which field name in your data represents the longitude - default "lng"
+        //   lngField: 'lng',
+        //   // which field name in your data represents the data value - default "value"
+        //   valueField: 'count'
+        // };
+
+        // return new HeatmapOverlay(cfg);
+        // init heat with Leaflet.heat
+        if(data){
+          data = data.map(function (p) { return [p.lat, p.lng, p.count] });
+        }
+        return L.heatLayer(data).addTo(map);
+    }
+    function add_data_to_heat(layer, data){
+      // dynamic add data to heat layer
+      for(x in data){
+        layer.addLatLng([x.lat, x.lng, x.count]);
+      }
     }
     function process_slider(value){
         arr = []
@@ -389,20 +302,64 @@
         return this.value;
       }).get();
     }
-    function getValue(){
-      t = $('#time-range').slider('getValue')
-      tf = process_slider(t)
-      trans = getCheckBox($('.transport-type:checked'))
-      us = getCheckBox($('.usage:checked'))
-      d = $('#day-filter').val()
-      d = d <= 2 ? d : 0
+
+
+    function init_map_events(m){
+      // init map event for mouse move, zoom, ...
+      m.on('zoom touchZoom', function(){
+        clearTimeout(waiting_for_map)
+      })
+      m.on('moveend', function() { 
+        waiting_for_map = setTimeout(update_data, 1000)
+      });
+    }
+    function update_data(){
+      filter = get_filter()
+      get_data(filter)
+    }
+    function get_boundary(m){
+      // get map boundary
+      points = m.getBounds();
       return {
-        time: tf,
-        date: d,
-        transport: trans,
-        usage: us
+        'tr': points._northEast,
+        'bl': points._southWest
       }
     }
+    // get filter condition on right hand box
+    function get_filter(){
+      t = $('#time-range').slider('getValue')
+      trans = getCheckBox($('.transport-type:checked'))
+      us = getCheckBox($('.usage:checked'))
+      us = us.length == 2 ? 2 : us[0]
+      d = $('#day-filter').val()
+      d = d <= 2 ? d : 0
+      bd = get_boundary(map)
+      return {
+        tfrom: processLabel(t[0]),
+        tto: processLabel(t[1]),
+        date: d,
+        station_type: JSON.stringify(trans),
+        usage: us,
+        boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat])
+      }
+    }
+    // send ajax post request to get new data
+    function get_data(filter) {
+        enableLoading()
+        $.post('/get_heat_data', filter, function (res) {
+            disableLoading()
+            if(res.data && res.data.length){
+              latlngs = res.data
+              map.fitBounds(L.latLngBounds(latlngs));
+              heat.setLatLngs(latlngs)  
+            }
+        }, 'json').fail(function() {
+            alert('An error occured during processing')
+            disableLoading()    
+        });
+    }
+
+  
     $(document).ready(function() {
         // https://github.com/seiyria/bootstrap-slider
         // *https://www.patrick-wied.at/static/heatmapjs/
@@ -412,13 +369,10 @@
           formatter: process_slider
         })
         map = initLeaflet()
-        heat = initHeat()
-        heat.addTo(map)
-        heat.setData(testData);
-        taxi_select.change(function() {
-            val = parseInt(taxi_select.val())
-            if (val)
-                get_data(val - 1)
+        init_map_events(map)
+        heat = initHeat(map, testData.data)
+        $('#submit-filter').click(function(){
+          get_data(get_filter())
         })
     });
     </script>
