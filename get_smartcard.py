@@ -18,27 +18,56 @@ def init_spark():
 
 
 def load_data():
-    sc = spark.sparkContext
-    data0625_raw = spark.read \
+    # lat/lon data
+    bus_latlong = spark.read \
+            .format("com.databricks.spark.csv") \
+            .option("header", "true") \
+            .option("inferSchema", "true") \
+            .option("encoding", "UTF-8") \
+            .load("./raw/bus_station.csv")
+
+    subway_latlong = spark.read \
+            .format("com.databricks.spark.csv") \
+            .option("header", "true") \
+            .option("inferSchema", "true") \
+            .option("encoding", "UTF-8") \
+            .load("./raw/subway_station.csv")
+    
+    # Raw data
+    data_raw = spark.read \
+        .format("com.databricks.spark.csv") \
+        .option("header", "false") \
+        .option("inferSchema", "false") \
+        .option("encoding", "UTF-8") \
+        .load("/nfs-data/datasets/smartcard_data/cards/20170626.csv")
+
+    data = preprocessing(data_raw, bus_latlong, subway_latlong)
+    data.cache()
+    print(data.printSchema())
+    print(data.count())
+    cache.append(data)
+
+    data_raw = spark.read \
         .format("com.databricks.spark.csv") \
         .option("header", "false") \
         .option("inferSchema", "false") \
         .option("encoding", "UTF-8") \
         .load("/nfs-data/datasets/smartcard_data/cards/20170625.csv")
 
-    data = preprocessing(data0625_raw)
+    data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data.cache()
-    print(data.printSchema())
     print(data.count())
     cache.append(data)
 
 def udf_station_type(t):
-    if(t < 200):
-      return 1 
+    if t == 131:
+      return 2 
+    elif t < 200:
+      return 1
     else:
       return 3
 
-def preprocessing(data):
+def preprocessing(data, bus_latlong, subway_latlong):
     data1 = data.select(unix_timestamp(col("_c1"), "yyyyMMddHHmmss").cast("timestamp").alias("from_time"), col("_c2").alias("on_station_id"), \
                         unix_timestamp(col("_c3"), "yyyyMMddHHmmss").cast("timestamp").alias("to_time"), col("_c4").alias("off_station_id"), col("_c5").cast("integer").alias("transportation_code"), \
                         col("_c6").cast("integer").alias("headcount"), col("_c7").cast("integer").alias("distance"))
@@ -52,33 +81,27 @@ def preprocessing(data):
                  .withColumnRenamed("off_station_id", "station_id").withColumnRenamed("off_timerange", "timerange")
     data5 = data3.join(data4, ["station_id", "timerange"]).withColumn("station_id_int", col("station_id").cast("integer"))
 
-    # lat/lon data
-    bus_latlong = spark.read \
-            .format("com.databricks.spark.csv") \
-            .option("header", "true") \
-            .option("inferSchema", "true") \
-            .option("encoding", "UTF-8") \
-            .load("./raw/bus_station.csv")
-  
-    subway_latlong = spark.read \
-            .format("com.databricks.spark.csv") \
-            .option("header", "true") \
-            .option("inferSchema", "true") \
-            .option("encoding", "UTF-8") \
-            .load("./raw/subway_station.csv")
-
-    data6 = data5.filter("station_type == 1").join(bus_latlong, col("station_id_int") == col("station")) \
+    data6 = data5.filter("station_type == 1 or station_type == 2").join(bus_latlong, col("station_id_int") == col("station")) \
                  .select("station_id", "timerange", "station_type", "sum_geton", "sum_getoff", "latitude", "longitude")
     data7 = data5.filter("station_type == 3").join(subway_latlong, col("station_id_int") == col("station")) \
                  .select("station_id", "timerange", "station_type", "sum_geton", "sum_getoff", "latitude", "longitude")
     data8 = data6.union(data7).dropDuplicates()
     return data8
 
-def process_latlng(data):
-    return {'lat' : (int(data.lat) / 1000000.0), 'lng' : (int(data.lng) / 1000000.0)}
+from math import cos, asin, sqrt
+def distance(lat1, lon1, lat2, lon2):
+    p = 0.017453292519943295     #Pi/180
+    a = 0.5 - cos((lat2 - lat1) * p)/2 + cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2
+    return 12742 * asin(sqrt(a)) #2*R*asin...
 
-def get_points(from_time, to_time, day, station_type, direction, boundary):
-    day = '2017-06-25'
+def get_points(from_time, to_time, date, station_type, direction, boundary, threshold=0, grid_scale=5):
+    # weekday
+    if date == 0 or date == 1:
+        day = '2017-06-26'
+        data = cache[0]
+    else: # weekend
+        day = '2017-06-25'
+        data = cache[1]
     timerange_from = day + ' ' + from_time + ':00'
     timerange_to = day + ' ' + to_time + ':00'
     station_type_str = ','.join(station_type)
@@ -87,23 +110,38 @@ def get_points(from_time, to_time, day, station_type, direction, boundary):
     y1 = boundary[2]
     y2 = boundary[3]
     
+    distance_lat = int(distance(y1,x1,y2,x1) / grid_scale)
+    distance_lng = int(distance(y1,x1,y1,x2) / grid_scale)
+    print(distance_lat)
+    print(distance_lng)
+    grid = 100
+    distance_lat = grid if distance_lat < grid else distance_lat
+    distance_lng = grid if distance_lng < grid else distance_lng
+    lat_step = (y2-y1)/distance_lat
+    lng_step = (x1-x2)/distance_lng
+    
     filter_str = " timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "'"
     filter_str += " and station_type in (" + station_type_str + ")"
     filter_str += " and latitude > " + str(y1) + " and latitude < " + str(y2) + " and longitude > " + str(x2) + " and longitude < " + str(x1)
     print(filter_str)
     
-    data = cache[0]
+    # Filter data and aggregate by grid
+    data_filtered = data.filter(filter_str)
+    data1 = data_filtered.withColumn("agg_latitude", (((col("latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
+                         .withColumn("agg_longitude", (((col("longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
+    data2 = data1.groupBy("agg_latitude", "agg_longitude").agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff"))
+    
     if direction == 0:
-        result = data.filter(filter_str).select(col("latitude").alias("lat"), col("longitude").alias("lng"), col("sum_geton").alias("count")) \
+        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_geton").alias("count")).where("count >= " + str(threshold)) \
                  .collect()
     elif direction == 1:
-        result = data.filter(filter_str).select(col("latitude").alias("lat"), col("longitude").alias("lng"), col("sum_getoff").alias("count")) \
+        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_getoff").alias("count")).where("count >= " + str(threshold)) \
                  .collect()
     else:
-        result = data.filter(filter_str).select(col("latitude").alias("lat"), col("longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")) \
+        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")).where("count >= " + str(threshold)) \
                  .collect()
     print(len(result))
-    #print(result[0:10])
+    print(result[0:10])
     return result
 
 
@@ -121,13 +159,11 @@ if __name__ == "__main__":
     print("Load data time: %.2f seconds" % (end-start))
 
     start = time.time()
-    result = get_points('15:00', '19:00', 1, [1,3], 2, [128.00,36.0,126.0,38.0])
+    result = get_points('15:00', '19:00', 1, ['1'], 2, [126.00,128.0,36.0,38.0])
     end = time.time()
     print("Get result time: %.2f seconds" % (end-start))
-    print(len(result))
     
     start = time.time()
-    result = get_points('15:00', '19:00', 1, [1,3], 2, [128.00,36.0,126.0,38.0])
+    result = get_points('15:00', '19:00', 1, ['1'], 2, [126.00,128.0,36.0,38.0], 300)
     end = time.time()
     print("Get result time: %.2f seconds" % (end-start))
-    print(len(result))

@@ -41,10 +41,10 @@ class HeatMap(object):
 
     @cherrypy.tools.accept(media='text/plain')
     @cherrypy.expose
-    def POST(self, tfrom=0, tto=0, date=0, station_type="[0,1,2,3]", usage=2, boundary="[]"):
+    def POST(self, tfrom=0, tto=0, date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
         st = json.loads(station_type)
         bd = json.loads(boundary)
-        data = s.get_points(tfrom, tto, date, st, usage, bd)
+        data = s.get_points(tfrom, tto, int(date), st, usage, bd, int(threshold))
         return json.dumps({'data': data})
 
 
@@ -89,8 +89,8 @@ if __name__ == '__main__':
         }
     }
     # g.init_spark()
-    # s.init_spark()
-    # s.load_data()
+    s.init_spark()
+    s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
