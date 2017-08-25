@@ -4,11 +4,13 @@
 <head>
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
-    <title>Taxi trajectory</title>
+    <title>Seoul Transport Visualization</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="./static/css/font-awesome.min.css">
     <link href="./static/css/leaflet.css" rel="stylesheet" type="text/css" />
     <link href="./static/css/bootstrap-slider.min.css" rel="stylesheet" type="text/css" />
+    <link rel="image_src" href="./static/css/images/bdi.png" />
+    <meta property="og:image" content="./static/css/images/bdi.png"/>
     <!-- <script src="http://cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.js"></script> -->
     <script src="./static/js/leaflet.js"></script>
     <script src="./static/js/L.Polyline.SnakeAnim.js"></script>
@@ -97,7 +99,7 @@
     .time-range-label{
       /*font-size: 12px;*/
     }
-   /* .time-range-label .start{
+    /*.time-range-label .start{
       position: absolute;
       left: -15px;
     }
@@ -105,6 +107,9 @@
       position: absolute;
       right: -15px;
     }*/
+    .threshold .slider-track-high, #slider12c .slider-track-high {
+      background: #cbcbcb
+    }
     .submit button{
       float: right
     }
@@ -126,6 +131,19 @@
                     <h3>Filter Options</h3>
                     <form class="form-horizontal">
                         <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Threshold</label>
+                            <div class="col-sm-8 threshold">
+                                <input id="threshold" type="text" value="" 
+                                  data-slider-value="0"
+                                  data-slider-min="0" 
+                                  data-slider-max="10000" 
+                                  data-slider-step="500"/>
+                                <div class='time-range-label'>
+                                  <span class='threshold-value'>0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
                             <label for="day-filter" class="col-sm-4 control-label">Day type</label>
                             <div class="col-sm-8">
                                 <select class="form-control" id='day-filter'>
@@ -140,10 +158,9 @@
                             <div class="col-sm-8 time-range">
                                 <input id="time-range" type="text" value="" 
                                   data-slider-min="0" data-slider-max="48" data-slider-step="1"
-                                  data-slider-value="[0,48]"
-                                  data-slider-handle="custom"/>
+                                  data-slider-value="[0,48]"/>
                                 <div class='time-range-label'>
-                                  <span class='start'>00:00</span>&nbsp-&nbsp<span class="end">24:00</span>
+                                  <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
                                 </div>
                             </div>
                         </div>
@@ -173,7 +190,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="day-filter" class="col-sm-4 control-label">Usage</label>
+                            <label for="day-filter" class="col-sm-4 control-label">Direction</label>
                             <div class="col-sm-8">
                                 <div class="checkbox">
                                     <label>
@@ -204,6 +221,7 @@
     loading_container = $('#loading')
     waiting_for_map = 0
     zoom = 8
+    thres = null
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -266,7 +284,7 @@
           data = data.map(function (p) { return [p.lat, p.lng, p.count] });
         }
         return L.heatLayer(data, {
-          radius: 8
+          radius: 10
         }).addTo(map);
     }
     function add_data_to_heat(layer, data){
@@ -274,6 +292,36 @@
       for(x in data){
         layer.addLatLng([x.lat, x.lng, x.count]);
       }
+    }
+    function bind_direction(){
+      var obj = $('.usage:checked')
+      obj.click(function(){
+        checked = getCheckBox($('.usage:checked'))
+        if(!checked.length){
+          $(this).prop('checked', true)
+        }
+      })
+    }
+    function bind_transport_type(){
+      var obj = $('.transport-type')
+      obj.change(function(){
+        checked = getCheckBox($('.transport-type:checked'))
+        // check if has subway in filter
+
+        if(checked.indexOf('3') != -1){
+          change_threshold(10000, 500)
+        }else{
+          change_threshold(1000, 100)
+        }
+      })
+    }
+    function change_threshold(threshold, step){
+      if (thres){
+          thres.setAttribute('max', threshold)
+          thres.setAttribute('step', step)
+          thres.setValue(0)
+      }
+      
     }
     function process_slider(value){
         arr = []
@@ -321,6 +369,7 @@
         waiting_for_map = setTimeout(update_data, 1000)
       });
     }
+
     function update_data(){
       filter = get_filter()
       // get_data(filter)
@@ -336,6 +385,7 @@
     // get filter condition on right hand box
     function get_filter(){
       t = $('#time-range').slider('getValue')
+      thh = thres.getValue()
       trans = getCheckBox($('.transport-type:checked'))
       us = getCheckBox($('.usage:checked'))
       us = us.length == 2 ? 2 : us[0]
@@ -348,7 +398,8 @@
         date: d,
         station_type: JSON.stringify(trans),
         usage: us,
-        boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat])
+        boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat]),
+        threshold: thh
       }
     }
     // send ajax post request to get new data
@@ -370,21 +421,33 @@
         });
     }
 
+    function numberWithCommas(x) {
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
   
     $(document).ready(function() {
         // https://github.com/seiyria/bootstrap-slider
         // *https://www.patrick-wied.at/static/heatmapjs/
         // https://github.com/Leaflet/Leaflet.heat
+        thres = new Slider('#threshold', {
+          'reversed': false,
+          formatter: function(value){
+            $('.threshold-value').html(numberWithCommas(value))
+            return value
+          }
+        })
         $('#time-range').slider({
           'reversed': false,
           formatter: process_slider
         })
         map = initLeaflet()
         init_map_events(map)
-        heat = initHeat(map, testData.data)
+        heat = initHeat(map, [])
         $('#submit-filter').click(function(){
           get_data(get_filter())
         })
+        bind_transport_type()
+        bind_direction()
     });
     </script>
 </body>
