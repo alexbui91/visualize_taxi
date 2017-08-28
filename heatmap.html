@@ -5,7 +5,7 @@
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <title>Seoul Transport Visualization</title>
     <script src="https://maps.googleapis.com/maps/api/js" async defer></script>
 
@@ -265,24 +265,24 @@
             maxZoom: 24,
             type:'roadmap'
         }).addTo(map);
-        var styleMutant = L.gridLayer.googleMutant({
-            styles: [
-                {elementType: 'labels', stylers: [{visibility: 'off'}]},
-                {featureType: 'water', stylers: [{color: '#444444'}]},
-                {featureType: 'landscape', stylers: [{color: '#eeeeee'}]},
-                {featureType: 'road', stylers: [{visibility: 'off'}]},
-                {featureType: 'poi', stylers: [{visibility: 'off'}]},
-                {featureType: 'transit', stylers: [{visibility: 'off'}]},
-                {featureType: 'administrative', stylers: [{visibility: 'off'}]},
-                {featureType: 'administrative.locality', stylers: [{visibility: 'off'}]}
-            ],
-            maxZoom: 24,
-            type:'roadmap'
-        });
+        // var styleMutant = L.gridLayer.googleMutant({
+        //     styles: [
+        //         {elementType: 'labels', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'water', stylers: [{color: '#444444'}]},
+        //         {featureType: 'landscape', stylers: [{color: '#eeeeee'}]},
+        //         {featureType: 'road', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'poi', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'transit', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'administrative', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'administrative.locality', stylers: [{visibility: 'off'}]}
+        //     ],
+        //     maxZoom: 24,
+        //     type:'roadmap'
+        // });
 
         L.control.layers({
-            Roadmap: roadMutant,
-            Styles: styleMutant
+            Roadmap: roadMutant
+            // Styles: styleMutant
         }, {}, {
             collapsed: false
         }).addTo(map);
