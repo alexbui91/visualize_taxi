@@ -256,7 +256,7 @@
             center: [37.5717, 126.93923],
             zoom: 8
         });
-        var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+        var positron = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
         }).addTo(map);
         return map
@@ -482,9 +482,9 @@
         heat = initHeat(map, [])
         $('#submit-filter').click(function(){
           is_draw = true
-          if(map.getZoom() != start_zoom){
-            get_data(get_filter())
-          }
+          //if(map.getZoom() != start_zoom){
+          get_data(get_filter())
+          //}
         })
         bind_transport_type()
         bind_direction()
