@@ -19,6 +19,7 @@
     <script src="./static/js/bootstrap-slider.min.js"></script>
     <!-- <script src="./static/js/heatmap.min.js"></script> -->
     <script src="./static/js/leaflet-heat.js"></script>
+    <script src="./static/js/underscore-min.js"></script>
     
     <!-- <script src="./static/js/leaflet-heatmap.js"></script> -->
     
@@ -135,9 +136,7 @@
                             <div class="col-sm-8 threshold">
                                 <input id="threshold" type="text" value="" 
                                   data-slider-value="0"
-                                  data-slider-min="0" 
-                                  data-slider-max="10000" 
-                                  data-slider-step="500"/>
+                                  data-slider-min="0" />
                                 <div class='time-range-label'>
                                   <span class='threshold-value'>0</span>
                                 </div>
@@ -222,6 +221,11 @@
     waiting_for_map = 0
     zoom = 8
     thres = null
+    valid_loading = true
+    max_threshold = 15000
+    def_step = 500
+    start_zoom = 0
+    is_draw = false
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -284,7 +288,7 @@
           data = data.map(function (p) { return [p.lat, p.lng, p.count] });
         }
         return L.heatLayer(data, {
-          radius: 10
+          radius: 8
         }).addTo(map);
     }
     function add_data_to_heat(layer, data){
@@ -309,9 +313,9 @@
         // check if has subway in filter
 
         if(checked.indexOf('3') != -1){
-          change_threshold(10000, 500)
+          change_threshold(max_threshold, def_step)
         }else{
-          change_threshold(1000, 100)
+          change_threshold(2000, 100)
         }
       })
     }
@@ -356,23 +360,31 @@
 
     function init_map_events(m){
       // init map event for mouse move, zoom, ...
+      m.on('zoomstart', function(){
+        start_zoom = m.getZoom()
+      })
       m.on('zoomend', function(){
+        var cur_zoom = m.getZoom()
+        // console.log(cur_zoom, start_zoom)
         clearTimeout(waiting_for_map)
-        waiting_for_map = setTimeout(update_data, 1000)
+        if(is_draw && cur_zoom > start_zoom){
+          waiting_for_map = setTimeout(update_data, 500)  
+        }
+        start_zoom = cur_zoom
       })
       // m.on('moveend', function() { 
       //   clearTimeout(waiting_for_map)
       //   waiting_for_map = setTimeout(update_data, 1000)
       // });
-      m.on('dragend', function() { 
-        clearTimeout(waiting_for_map)
-        waiting_for_map = setTimeout(update_data, 1000)
-      });
+      // m.on('dragend', function() { 
+      //   clearTimeout(waiting_for_map)
+      //   waiting_for_map = setTimeout(update_data, 1000)
+      // });
     }
 
     function update_data(){
       filter = get_filter()
-      // get_data(filter)
+      get_data(filter)
     }
     function get_boundary(m){
       // get map boundary
@@ -404,21 +416,44 @@
     }
     // send ajax post request to get new data
     function get_data(filter) {
-        enableLoading()
-        $.post('http://147.47.206.14:31080/get_heat_data', filter, function (res) {
-            disableLoading()
-            if(res.data && res.data.length){
-              latlngs = res.data
-              console.log(res.data.length)
-              // map.fitBounds(L.latLngBounds(latlngs));
-              heat.setLatLngs(latlngs)
-            }else{
-              heat.setLatLngs([])
+        if(valid_loading){
+            valid_loading = false
+            enableLoading()
+            $.post('http://147.47.206.14:31080/get_heat_data', filter, function (res) {
+                valid_loading = true
+                disableLoading()
+                if(res.data && res.data.length){
+                  latlngs = res.data
+                  // console.log(res.data.length)
+                  // map.fitBounds(L.latLngBounds(latlngs));
+                  max = _.max(res.data, function(value){ return value[2]})[2];
+                  heat.setOptions('max', max)
+                  heat.setLatLngs(latlngs)
+                }else{
+                  heat.setLatLngs([])
+                }
+            }, 'json').fail(function(e) {
+                valid_loading = true
+                alert('An error occured during processing')
+                disableLoading()    
+                is_draw = false
+            });
+        }
+    }
+
+    function process_data(data){
+        if(data && data.length){
+            arr = []
+            min = _.min(data, function(value){ return value[2]})[2];
+            max = _.max(data, function(value){ return value[2]})[2];
+            for(x in data){
+                obj = data[x]
+                obj[2] = obj[2] / max
+                arr.push(obj)
             }
-        }, 'json').fail(function(e) {
-            alert('An error occured during processing')
-            disableLoading()    
-        });
+            return arr
+        }
+        return []
     }
 
     function numberWithCommas(x) {
@@ -431,6 +466,8 @@
         // https://github.com/Leaflet/Leaflet.heat
         thres = new Slider('#threshold', {
           'reversed': false,
+          'max': max_threshold,
+          'step': def_step,
           formatter: function(value){
             $('.threshold-value').html(numberWithCommas(value))
             return value
@@ -444,7 +481,10 @@
         init_map_events(map)
         heat = initHeat(map, [])
         $('#submit-filter').click(function(){
-          get_data(get_filter())
+          is_draw = true
+          if(map.getZoom() != start_zoom){
+            get_data(get_filter())
+          }
         })
         bind_transport_type()
         bind_direction()
