@@ -1,2 +1,3 @@
-host="localhost"
-port="50011"
+host="147.47.206.150"
+#port=50011 # new data
+port=8080 # old data
