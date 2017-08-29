@@ -80,8 +80,8 @@ if __name__ == '__main__':
         execfile(activate_this, dict(__file__=activate_this))
 
     import get_data as g
-    import get_smartcard as s
-
+    #import get_smartcard as s
+    import get_smartcard_0823 as s
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
