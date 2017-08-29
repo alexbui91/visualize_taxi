@@ -468,23 +468,32 @@
         d = d <= 2 ? d : 0
         bd = get_boundary(map)
         f1 = getRealTime(t[0])
+        t2 = getRealTime(t[1])
         if(f1 < 24){
           f1 = process_digit(t[0], f1)
-          t1 = '24:00'
-          time1 = [t1, f1]
+          if(t2 < 24){
+            t1 = process_digit(t[1], t2)
+          }else{
+            t1 = '24:00'
+          }
+          time1 = [f1, t1]
         }else{
           time1 = []
         }
-        t2 = getRealTime(t[1])
         if(t2 > 24){
-          f2 = '00:00'
-          t2 = process_digit(t[1], t2)
+          if(f1 > 24){
+            f2 = process_digit(t[0], f1 % 24)
+          }else{
+            f2 = '00:00'
+          }
+          t2 = process_digit(t[1], t2 % 24)
           time2 = [f2, t2]
         }else{
           time2 = []
         }
+        console.log(time1, time2)
         return {
-            time: JSON.stringify([time1, time2])
+            time: JSON.stringify([time1, time2]),
             date: d,
             station_type: JSON.stringify(trans),
             usage: us,
