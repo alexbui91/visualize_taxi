@@ -54,7 +54,7 @@ class Station(object):
     @cherrypy.expose
     def POST(self):
         data = s.get_subwaypoints()
-        if data:
+        '''if data:
             curr_line = -1
             curr_line_data = None
             tmp = dict()
@@ -68,7 +68,7 @@ class Station(object):
             tmp[curr_line] = curr_line_data
             data = tmp
         else:
-            data = []
+            data = []'''
         return json.dumps({'data': data})
 
 if __name__ == '__main__':
@@ -117,8 +117,8 @@ if __name__ == '__main__':
         }
     }
     # g.init_spark()
-    # s.init_spark()
-    # s.load_data()
+    s.init_spark()
+    s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
