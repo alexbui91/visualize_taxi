@@ -4,13 +4,14 @@
 <head>
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seoul Transport Visualization</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="./static/css/font-awesome.min.css">
     <link href="./static/css/leaflet.css" rel="stylesheet" type="text/css" />
     <link href="./static/css/bootstrap-slider.min.css" rel="stylesheet" type="text/css" />
     <link rel="image_src" href="./static/css/images/bdi.png" />
-    <meta property="og:image" content="./static/css/images/bdi.png"/>
+    <meta property="og:image" content="./static/css/images/bdi.png" />
     <!-- <script src="http://cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.js"></script> -->
     <script src="./static/js/leaflet.js"></script>
     <script src="./static/js/L.Polyline.SnakeAnim.js"></script>
@@ -19,9 +20,9 @@
     <script src="./static/js/bootstrap-slider.min.js"></script>
     <!-- <script src="./static/js/heatmap.min.js"></script> -->
     <script src="./static/js/leaflet-heat.js"></script>
-    
+    <script src="./static/js/underscore-min.js"></script>
+    <script src="./static/js/Leaflet.GoogleMutant.js"></script>
     <!-- <script src="./static/js/leaflet-heatmap.js"></script> -->
-    
     <style>
     /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
@@ -47,12 +48,12 @@
     /* line 3, ../sass/custom.scss */
 
     .loading-container {
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(238, 238, 238, 0.1);
+        background: rgba(238, 238, 238, 0.5);
         z-index: 99999
     }
 
@@ -79,25 +80,30 @@
         border: 1px solid #ccc;
         padding: 20px 15px;
     }
-    .action h3{
+
+    .action h3 {
         margin-top: 0;
         font-size: 18px;
     }
+
     .action .slider.slider-horizontal {
         width: 100%;
     }
-    .time-range .slider-selection{
-      background: #cbcbcb
+
+    .time-range .slider-selection {
+        background: #cbcbcb
     }
 
     .slider-handle.custom::before {
-        color: #333333;   
+        color: #333333;
     }
-    .time-range-label{
-      position: relative;
+
+    .time-range-label {
+        position: relative;
     }
-    .time-range-label{
-      /*font-size: 12px;*/
+
+    .time-range-label {
+        /*font-size: 12px;*/
     }
     /*.time-range-label .start{
       position: absolute;
@@ -107,23 +113,26 @@
       position: absolute;
       right: -15px;
     }*/
-    .threshold .slider-track-high, #slider12c .slider-track-high {
-      background: #cbcbcb
+
+    .threshold .slider-track-high,
+    #slider12c .slider-track-high {
+        background: #cbcbcb
     }
-    .submit button{
-      float: right
+
+    .submit button {
+        float: right
     }
     </style>
 </head>
 
 <body>
-    <div id="loading" class="loading-container hide">
-        <div class='loading-item'>&nbsp</div>
-    </div>
     <div class='container'>
         <h1 class='map-title'>Seoul Public Transportation Visualization</h1>
         <div class='row'>
             <div class='col-lg-9 col-md-8 col-sm-12 col-xs-12'>
+                <div id="loading" class="loading-container hide">
+                    <div class='loading-item'>&nbsp</div>
+                </div>
                 <div id="map"></div>
             </div>
             <div class='col-lg-3 col-md-4 col-sm-12 col-xs-12'>
@@ -133,13 +142,9 @@
                         <div class="form-group">
                             <label for="day-filter" class="col-sm-4 control-label">Threshold</label>
                             <div class="col-sm-8 threshold">
-                                <input id="threshold" type="text" value="" 
-                                  data-slider-value="0"
-                                  data-slider-min="0" 
-                                  data-slider-max="10000" 
-                                  data-slider-step="500"/>
+                                <input id="threshold" type="text" value="" data-slider-value="0" data-slider-min="0" />
                                 <div class='time-range-label'>
-                                  <span class='threshold-value'>0</span>
+                                    <span class='threshold-value'>0</span>
                                 </div>
                             </div>
                         </div>
@@ -156,11 +161,9 @@
                         <div class="form-group">
                             <label for="day-filter" class="col-sm-4 control-label">Time range</label>
                             <div class="col-sm-8 time-range">
-                                <input id="time-range" type="text" value="" 
-                                  data-slider-min="0" data-slider-max="48" data-slider-step="1"
-                                  data-slider-value="[0,48]"/>
+                                <input id="time-range" type="text" value="" data-slider-min="0" data-slider-max="48" data-slider-step="1" data-slider-value="[0,48]" />
                                 <div class='time-range-label'>
-                                  <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
+                                    <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
                                 </div>
                             </div>
                         </div>
@@ -215,19 +218,31 @@
         </div>
     </div>
     <script>
-
     map = null
     helpbt = $('.help')
     loading_container = $('#loading')
     waiting_for_map = 0
     zoom = 8
     thres = null
+    valid_loading = true
+    threshold = {
+      group1: {
+        max: 15000,
+        step: 500
+      },
+      group2: {
+        max: 2000,
+        step: 100
+      }
+    }
+    start_zoom = 0
+    is_draw = false
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
     // list = ['20120101_334805_01.json', '20120101_342003.json', '20120101_342019.json']
     var testData = {
-      data: [{"lat": 37.531765, "lng": 127.038958, "count": 1}, {"lat": 36.5317, "lng": 127.03923, "count": 6}]
+        data: [{ "lat": 37.531765, "lng": 127.038958, "count": 1 }, { "lat": 36.5317, "lng": 127.03923, "count": 6 }]
     };
 
     function enableLoading() {
@@ -252,13 +267,38 @@
             center: [37.5717, 126.93923],
             zoom: 8
         });
-        var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
+        var roadMutant = L.gridLayer.googleMutant({
+            maxZoom: 24,
+            type: 'roadmap'
         }).addTo(map);
+        // var styleMutant = L.gridLayer.googleMutant({
+        //     styles: [
+        //         {elementType: 'labels', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'water', stylers: [{color: '#444444'}]},
+        //         {featureType: 'landscape', stylers: [{color: '#eeeeee'}]},
+        //         {featureType: 'road', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'poi', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'transit', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'administrative', stylers: [{visibility: 'off'}]},
+        //         {featureType: 'administrative.locality', stylers: [{visibility: 'off'}]}
+        //     ],
+        //     maxZoom: 24,
+        //     type:'roadmap'
+        // });
+
+        L.control.layers({
+            Roadmap: roadMutant
+            // Styles: styleMutant
+        }, {}, {
+            collapsed: false
+        }).addTo(map);
+        // var positron = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        //     attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
+        // }).addTo(map);
         return map
     }
-    
-    function initHeat(map, data){
+
+    function initHeat(map, data) {
         // var cfg = {
         //   // radius should be small ONLY if scaleRadius is true (or small radius is intended)
         //   // if scaleRadius is false it will be the constant radius used in pixels
@@ -280,176 +320,222 @@
 
         // return new HeatmapOverlay(cfg);
         // init heat with Leaflet.heat
-        if(data){
-          data = data.map(function (p) { return [p.lat, p.lng, p.count] });
+        if (data) {
+            data = data.map(function(p) { return [p.lat, p.lng, p.count] });
         }
         return L.heatLayer(data, {
-          radius: 10
+            radius: 8,
+            blur: 15
         }).addTo(map);
     }
-    function add_data_to_heat(layer, data){
-      // dynamic add data to heat layer
-      for(x in data){
-        layer.addLatLng([x.lat, x.lng, x.count]);
-      }
-    }
-    function bind_direction(){
-      var obj = $('.usage:checked')
-      obj.click(function(){
-        checked = getCheckBox($('.usage:checked'))
-        if(!checked.length){
-          $(this).prop('checked', true)
-        }
-      })
-    }
-    function bind_transport_type(){
-      var obj = $('.transport-type')
-      obj.change(function(){
-        checked = getCheckBox($('.transport-type:checked'))
-        // check if has subway in filter
 
-        if(checked.indexOf('3') != -1){
-          change_threshold(10000, 500)
-        }else{
-          change_threshold(1000, 100)
+    function add_data_to_heat(layer, data) {
+        // dynamic add data to heat layer
+        for (x in data) {
+            layer.addLatLng([x.lat, x.lng, x.count]);
         }
-      })
     }
-    function change_threshold(threshold, step){
-      if (thres){
-          thres.setAttribute('max', threshold)
-          thres.setAttribute('step', step)
-          thres.setValue(0)
-      }
-      
+
+    function bind_direction() {
+        var obj = $('.usage:checked')
+        obj.click(function() {
+            checked = getCheckBox($('.usage:checked'))
+            if (!checked.length) {
+                $(this).prop('checked', true)
+            }
+        })
     }
-    function process_slider(value){
+
+    function bind_transport_type() {
+        var obj = $('.transport-type')
+        obj.change(function() {
+            checked = getCheckBox($('.transport-type:checked'))
+            // check if has subway in filter
+
+            if (checked.indexOf('0') != -1 || checked.indexOf('3') != -1) {
+                change_threshold(threshold.group1.max, threshold.group1.step)
+            } else {
+                change_threshold(threshold.group2.max, threshold.group2.step)
+            }
+        })
+    }
+
+    function change_threshold(threshold, step) {
+        if (thres) {
+            thres.setAttribute('max', threshold)
+            thres.setAttribute('step', step)
+            thres.setValue(0)
+        }
+
+    }
+
+    function process_slider(value) {
         arr = []
-        for (x in value){
-          arr.push(processLabel(value[x]))
+        for (x in value) {
+            arr.push(processLabel(value[x]))
         }
         $('.start').html(arr[0])
         $('.end').html(arr[1])
         return arr
     }
-    function processLabel(value){
-      time = value / 2 
-      re = value % 2
-      h = ''
-      if(time < 10)
-        h = '0' + parseInt(time) 
-      else
-        h = '' + parseInt(time) 
-      res = h + ':'
-      if(re != 0)
-        res += '30'
-      else
-        res += '00'
-      return res
+
+    function processLabel(value) {
+        time = value / 2
+        re = value % 2
+        h = ''
+        if (time < 10)
+            h = '0' + parseInt(time)
+        else
+            h = '' + parseInt(time)
+        res = h + ':'
+        if (re != 0)
+            res += '30'
+        else
+            res += '00'
+        return res
     }
-    function getCheckBox(obj){
-      return obj.map(function(){
-        return this.value;
-      }).get();
+
+    function getCheckBox(obj) {
+        return obj.map(function() {
+            return this.value;
+        }).get();
     }
 
 
-    function init_map_events(m){
-      // init map event for mouse move, zoom, ...
-      m.on('zoomend', function(){
-        clearTimeout(waiting_for_map)
-        waiting_for_map = setTimeout(update_data, 1000)
-      })
-      // m.on('moveend', function() { 
-      //   clearTimeout(waiting_for_map)
-      //   waiting_for_map = setTimeout(update_data, 1000)
-      // });
-      m.on('dragend', function() { 
-        clearTimeout(waiting_for_map)
-        waiting_for_map = setTimeout(update_data, 1000)
-      });
+    function init_map_events(m) {
+        // init map event for mouse move, zoom, ...
+        m.on('zoomstart', function() {
+            start_zoom = m.getZoom()
+        })
+        m.on('zoomend', function() {
+            var cur_zoom = m.getZoom()
+            // console.log(cur_zoom, start_zoom)
+            clearTimeout(waiting_for_map)
+            if (is_draw && cur_zoom > start_zoom) {
+                waiting_for_map = setTimeout(update_data, 500)
+            }
+            start_zoom = cur_zoom
+        })
+        // m.on('moveend', function() { 
+        //   clearTimeout(waiting_for_map)
+        //   waiting_for_map = setTimeout(update_data, 1000)
+        // });
+        // m.on('dragend', function() { 
+        //   clearTimeout(waiting_for_map)
+        //   waiting_for_map = setTimeout(update_data, 1000)
+        // });
     }
 
-    function update_data(){
-      filter = get_filter()
-      // get_data(filter)
+    function update_data() {
+        filter = get_filter()
+        get_data(filter)
     }
-    function get_boundary(m){
-      // get map boundary
-      points = m.getBounds();
-      return {
-        'tr': points._northEast,
-        'bl': points._southWest
-      }
+
+    function get_boundary(m) {
+        // get map boundary
+        points = m.getBounds();
+        return {
+            'tr': points._northEast,
+            'bl': points._southWest
+        }
     }
     // get filter condition on right hand box
-    function get_filter(){
-      t = $('#time-range').slider('getValue')
-      thh = thres.getValue()
-      trans = getCheckBox($('.transport-type:checked'))
-      us = getCheckBox($('.usage:checked'))
-      us = us.length == 2 ? 2 : us[0]
-      d = $('#day-filter').val()
-      d = d <= 2 ? d : 0
-      bd = get_boundary(map)
-      return {
-        tfrom: processLabel(t[0]),
-        tto: processLabel(t[1]),
-        date: d,
-        station_type: JSON.stringify(trans),
-        usage: us,
-        boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat]),
-        threshold: thh
-      }
+    function get_filter() {
+        t = $('#time-range').slider('getValue')
+        thh = thres.getValue()
+        trans = getCheckBox($('.transport-type:checked'))
+        us = getCheckBox($('.usage:checked'))
+        us = us.length == 2 ? 2 : us[0]
+        d = $('#day-filter').val()
+        d = d <= 2 ? d : 0
+        bd = get_boundary(map)
+        return {
+            tfrom: processLabel(t[0]),
+            tto: processLabel(t[1]),
+            date: d,
+            station_type: JSON.stringify(trans),
+            usage: us,
+            boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat]),
+            threshold: thh
+        }
     }
     // send ajax post request to get new data
     function get_data(filter) {
-        enableLoading()
-        $.post('http://147.47.206.14:31080/get_heat_data', filter, function (res) {
-            disableLoading()
-            if(res.data && res.data.length){
-              latlngs = res.data
-              console.log(res.data.length)
-              // map.fitBounds(L.latLngBounds(latlngs));
-              heat.setLatLngs(latlngs)
-            }else{
-              heat.setLatLngs([])
+        if (valid_loading) {
+            valid_loading = false
+            enableLoading()
+            $.post('http://147.47.206.14:31080/get_heat_data', filter, function(res) {
+                valid_loading = true
+                disableLoading()
+                if (res.data && res.data.length) {
+                    latlngs = res.data
+                    // console.log(res.data.length)
+                    // map.fitBounds(L.latLngBounds(latlngs));
+                    max = _.max(res.data, function(value) { return value[2] })[2];
+                    heat.setOptions('max', max)
+                    heat.setLatLngs(latlngs)
+                } else {
+                    heat.setLatLngs([])
+                }
+            }, 'json').fail(function(e) {
+                valid_loading = true
+                alert('An error occured during processing')
+                disableLoading()
+                is_draw = false
+            });
+        }
+    }
+
+    function process_data(data) {
+        if (data && data.length) {
+            arr = []
+            min = _.min(data, function(value) { return value[2] })[2];
+            max = _.max(data, function(value) { return value[2] })[2];
+            for (x in data) {
+                obj = data[x]
+                obj[2] = obj[2] / max
+                arr.push(obj)
             }
-        }, 'json').fail(function(e) {
-            alert('An error occured during processing')
-            disableLoading()    
-        });
+            return arr
+        }
+        return []
     }
 
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
-  
+
     $(document).ready(function() {
         // https://github.com/seiyria/bootstrap-slider
         // *https://www.patrick-wied.at/static/heatmapjs/
         // https://github.com/Leaflet/Leaflet.heat
         thres = new Slider('#threshold', {
-          'reversed': false,
-          formatter: function(value){
-            $('.threshold-value').html(numberWithCommas(value))
-            return value
-          }
+            'reversed': false,
+            'max': threshold.group1.max,
+            'step': threshold.group1.step,
+            formatter: function(value) {
+                $('.threshold-value').html(numberWithCommas(value))
+                return value
+            }
         })
         $('#time-range').slider({
-          'reversed': false,
-          formatter: process_slider
+            'reversed': false,
+            formatter: process_slider
         })
         map = initLeaflet()
         init_map_events(map)
         heat = initHeat(map, [])
-        $('#submit-filter').click(function(){
-          get_data(get_filter())
+        $('#submit-filter').click(function() {
+            is_draw = true
+            //if(map.getZoom() != start_zoom){
+            get_data(get_filter())
+            //}
         })
         bind_transport_type()
         bind_direction()
     });
     </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script>
 </body>
 
 </html>
