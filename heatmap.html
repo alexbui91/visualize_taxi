@@ -225,8 +225,16 @@
     zoom = 8
     thres = null
     valid_loading = true
-    max_threshold = 15000
-    def_step = 500
+    threshold = {
+      group1: {
+        max: 15000,
+        step: 500
+      },
+      group2: {
+        max: 2000,
+        step: 100
+      }
+    }
     start_zoom = 0
     is_draw = false
     // This example creates a 2-pixel-wide red polyline showing the path of William
@@ -344,10 +352,10 @@
             checked = getCheckBox($('.transport-type:checked'))
             // check if has subway in filter
 
-            if (checked.indexOf('3') != -1) {
-                change_threshold(max_threshold, def_step)
+            if (checked.indexOf('0') != -1 || checked.indexOf('3') != -1) {
+                change_threshold(threshold.group1.max, threshold.group1.step)
             } else {
-                change_threshold(2000, 100)
+                change_threshold(threshold.group2.max, threshold.group2.step)
             }
         })
     }
@@ -503,8 +511,8 @@
         // https://github.com/Leaflet/Leaflet.heat
         thres = new Slider('#threshold', {
             'reversed': false,
-            'max': max_threshold,
-            'step': def_step,
+            'max': threshold.group1.max,
+            'step': threshold.group1.step,
             formatter: function(value) {
                 $('.threshold-value').html(numberWithCommas(value))
                 return value
