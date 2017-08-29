@@ -163,7 +163,7 @@
                             <div class="col-sm-8 time-range">
                                 <input id="time-range" type="text" value="" data-slider-min="0" data-slider-max="48" data-slider-step="1" data-slider-value="[0,48]" />
                                 <div class='time-range-label'>
-                                    <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
+                                    <span class='start'>05:00</span>&nbsp-&nbsp<span class='end'>05:00</span>
                                 </div>
                             </div>
                         </div>
@@ -235,6 +235,7 @@
         step: 100
       }
     }
+    time_offset = 5
     start_zoom = 0
     is_draw = false
     station = []
@@ -372,9 +373,10 @@
     }
 
     function process_slider(value) {
-        arr = []
+        // mid is 24h
+        var arr = []
         for (x in value) {
-            arr.push(processLabel(value[x]))
+          arr.push(processLabel(value[x]))
         }
         $('.start').html(arr[0])
         $('.end').html(arr[1])
@@ -382,14 +384,22 @@
     }
 
     function processLabel(value) {
-        time = value / 2
-        re = value % 2
-        h = ''
+        // get real clock time with offset of five or other 
+        var time = getRealTime(value)
+        time = time % 24
+        var res = process_digit(value, time)
+        return res
+    }
+
+    function process_digit(value, time){
+        // add 30 or 00 to clock time
+        var h = ''
+        var re = value % 2
         if (time < 10)
-            h = '0' + parseInt(time)
+            h = '0' + time
         else
-            h = '' + parseInt(time)
-        res = h + ':'
+            h = '' + time
+        var res = h + ':'
         if (re != 0)
             res += '30'
         else
@@ -397,6 +407,12 @@
         return res
     }
 
+    function getRealTime(value){
+        var time = parseInt(value / 2)
+        time += time_offset
+        // if(time > 24)
+        return time
+    }
     function getCheckBox(obj) {
         return obj.map(function() {
             return this.value;
@@ -451,9 +467,24 @@
         d = $('#day-filter').val()
         d = d <= 2 ? d : 0
         bd = get_boundary(map)
+        f1 = getRealTime(t[0])
+        if(f1 < 24){
+          f1 = process_digit(t[0], f1)
+          t1 = '24:00'
+          time1 = [t1, f1]
+        }else{
+          time1 = []
+        }
+        t2 = getRealTime(t[1])
+        if(t2 > 24){
+          f2 = '00:00'
+          t2 = process_digit(t[1], t2)
+          time2 = [f2, t2]
+        }else{
+          time2 = []
+        }
         return {
-            tfrom: processLabel(t[0]),
-            tto: processLabel(t[1]),
+            time: JSON.stringify([time1, time2])
             date: d,
             station_type: JSON.stringify(trans),
             usage: us,

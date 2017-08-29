@@ -41,10 +41,11 @@ class HeatMap(object):
 
     @cherrypy.tools.accept(media='text/plain')
     @cherrypy.expose
-    def POST(self, tfrom=0, tto=0, date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
+    def POST(self, time="[]", date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
+        tm = json.loads(time)
         st = json.loads(station_type)
         bd = json.loads(boundary)
-        data = s.get_points(tfrom, tto, int(date), st, usage, bd, int(threshold))
+        data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
         return json.dumps({'data': data})
 
 @cherrypy.expose
@@ -54,21 +55,6 @@ class Station(object):
     @cherrypy.expose
     def POST(self):
         data = s.get_subwaypoints()
-        if data:
-            curr_line = -1
-            curr_line_data = None
-            tmp = dict()
-            for x in data:
-                if not curr_line is x.line:
-                    if curr_line_data:
-                        tmp[curr_line] = curr_line_data
-                    curr_line = x.line
-                    curr_line_data = list()
-                curr_line_data.append(x)
-            tmp[curr_line] = curr_line_data
-            data = tmp
-        else:
-            data = []
         return json.dumps({'data': data})
 
 if __name__ == '__main__':
