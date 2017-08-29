@@ -47,6 +47,29 @@ class HeatMap(object):
         data = s.get_points(tfrom, tto, int(date), st, usage, bd, int(threshold))
         return json.dumps({'data': data})
 
+@cherrypy.expose
+class Station(object):
+
+    @cherrypy.tools.accept(media='text/plain')
+    @cherrypy.expose
+    def POST(self):
+        data = s.get_subwaypoints()
+        if data:
+            curr_line = -1
+            curr_line_data = None
+            tmp = dict()
+            for x in data:
+                if not curr_line is x.line:
+                    if curr_line_data:
+                        tmp[curr_line] = curr_line_data
+                    curr_line = x.line
+                    curr_line_data = list()
+                curr_line_data.append(x)
+            tmp[curr_line] = curr_line_data
+            data = tmp
+        else:
+            data = []
+        return json.dumps({'data': data})
 
 if __name__ == '__main__':
 
@@ -79,6 +102,11 @@ if __name__ == '__main__':
             'tools.response_headers.on': True,
             'tools.response_headers.headers': [('Content-Type', 'application/json'), ("Access-Control-Allow-Origin", '*')],
         },
+        '/get_subwaypoints': {
+            'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+            'tools.response_headers.on': True,
+            'tools.response_headers.headers': [('Content-Type', 'application/json'), ("Access-Control-Allow-Origin", '*')],
+        },
         '/static': {
             'tools.staticdir.on': True,
             'tools.staticdir.dir': './public'
@@ -94,4 +122,6 @@ if __name__ == '__main__':
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
+    webapp.get_subwaypoints = Station()
     cherrypy.quickstart(webapp, '/', conf)
+
