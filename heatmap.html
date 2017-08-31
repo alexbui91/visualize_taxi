@@ -22,11 +22,24 @@
     <script src="./static/js/leaflet-heat.js"></script>
     <script src="./static/js/underscore-min.js"></script>
     <script src="./static/js/Leaflet.GoogleMutant.js"></script>
+    <script src="./static/js/station.js"></script>
+    <script src="./static/js/station_color.js"></script>
     <!-- <script src="./static/js/leaflet-heatmap.js"></script> -->
     <style>
     /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
+    /*  
+      line 1: #0d4da1 
+      line 2: #00a650
+      line 3: #f26e22
+      line 4: #008acf   
+      line 5: #c710a2
+      line 6: #bd6b1e
+      line 7: #575e03
+      line 8: #ff4086
+      line 9: #8d764b
 
+    */
     @media (min-width: 1200px) {
         .container {
             width: calc(100vw - 50px);
@@ -238,15 +251,11 @@
     time_offset = 5
     start_zoom = 0
     is_draw = false
-    station = []
     station_path = []
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
     // list = ['20120101_334805_01.json', '20120101_342003.json', '20120101_342019.json']
-    var testData = {
-        data: [{ "lat": 37.531765, "lng": 127.038958, "count": 1 }, { "lat": 36.5317, "lng": 127.03923, "count": 6 }]
-    };
 
     function enableLoading() {
         loading_container.removeClass('hide')
@@ -270,30 +279,18 @@
             center: [37.5717, 126.93923],
             zoom: 10
         });
-        var roadMutant = L.gridLayer.googleMutant({
-            maxZoom: 24,
-            type: 'roadmap'
-        }).addTo(map);
-        // var styleMutant = L.gridLayer.googleMutant({
-        //     styles: [
-        //         {elementType: 'labels', stylers: [{visibility: 'off'}]},
-        //         {featureType: 'water', stylers: [{color: '#444444'}]},
-        //         {featureType: 'landscape', stylers: [{color: '#eeeeee'}]},
-        //         {featureType: 'road', stylers: [{visibility: 'off'}]},
-        //         {featureType: 'poi', stylers: [{visibility: 'off'}]},
-        //         {featureType: 'transit', stylers: [{visibility: 'off'}]},
-        //         {featureType: 'administrative', stylers: [{visibility: 'off'}]},
-        //         {featureType: 'administrative.locality', stylers: [{visibility: 'off'}]}
-        //     ],
+        // var roadMutant = L.gridLayer.googleMutant({
         //     maxZoom: 24,
-        //     type:'roadmap'
-        // });
-
-        L.control.layers({
-            Roadmap: roadMutant
-            // Styles: styleMutant
-        }, {}, {
-            collapsed: false
+        //     type: 'roadmap'
+        // }).addTo(map);
+        // L.control.layers({
+        //     Roadmap: roadMutant
+        //     // Styles: styleMutant
+        // }, {}, {
+        //     collapsed: false
+        // }).addTo(map);
+        var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
         }).addTo(map);
         // var positron = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         //     attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
@@ -491,7 +488,6 @@
         }else{
           time2 = []
         }
-        console.log(time1, time2)
         return {
             time: JSON.stringify([time1, time2]),
             date: d,
@@ -579,13 +575,23 @@
         return tmp
     }
     function draw_station(){
-      obj = station['2']
-      console.log(obj)
-      var path = L.polyline(obj, {color: 'red'}).addTo(map);
-      station_path.push(path)
-      // for(x in station){
-
-      // }
+      var color = ''
+      var obj
+      // s = 'K'
+      // color = station_color[s]
+        // obj = station_lines[s]
+      for(s in station_lines){
+        color = station_color[s]
+        obj = station_lines[s]
+        for(x in obj){
+            // loop each branch of station
+            var path = L.polyline(obj, {
+              color: color, 
+              weight: 1 
+            }).addTo(map);
+            station_path.push(path)
+        }
+      }
     }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -619,6 +625,8 @@
         })
         bind_transport_type()
         bind_direction()
+        setTimeout(draw_station, 100)
+        
     });
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script>
