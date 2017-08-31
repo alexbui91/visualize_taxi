@@ -12,9 +12,10 @@ cache = []
 def init_spark():
     global spark
     if spark is None:
-        spark = SparkSession.builder.appName("smartcard").config("spark.driver.memory", "64g").getOrCreate()
-    spark.conf.set("spark.driver.memory", "64g")
-    spark.conf.set("spark.executor.memory", "64g")
+        spark = SparkSession.builder.appName("smartcard").config("spark.driver.memory", "128g").getOrCreate()
+    spark.conf.set("spark.executor.instances", 3);
+    spark.conf.set("spark.executor.cores", 2);
+    spark.conf.set("spark.executor.memory", "128g")
 
 
 def load_data():
@@ -34,30 +35,30 @@ def load_data():
             .load("./raw/subway_station.csv")
 
     # Raw data
-    data_raw = spark.read \
-        .format("com.databricks.spark.csv") \
-        .option("header", "false") \
-        .option("inferSchema", "false") \
-        .option("encoding", "UTF-8") \
-        .load("/nfs-data/datasets/smartcard_data/cards_0823/cards/0520.txt")
+    data_path=[ "/nfs-data/datasets/smartcard_data/cards_0823/cards/0120.txt", 
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0405.txt", 
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0516.txt",  
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0517.txt",  
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0518.txt",  
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0519.txt",
+                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0520.txt", 
+                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0521.txt", 
+                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0522.txt"    
+	      ]
+    for path_ in data_path:
+        data_raw = spark.read \
+            .format("com.databricks.spark.csv") \
+            .option("header", "false") \
+            .option("inferSchema", "false") \
+            .option("encoding", "UTF-8") \
+            .load(path_)
 
-    data = preprocessing(data_raw, bus_latlong, subway_latlong)
-    data.cache()
-    print(data.printSchema())
-    print(data.count())
-    cache.append(data)
+        data = preprocessing(data_raw, bus_latlong, subway_latlong)
+        data.cache()
+        print(data.printSchema())
+        print(data.count())
+        cache.append(data)
 
-    data_raw = spark.read \
-        .format("com.databricks.spark.csv") \
-        .option("header", "false") \
-        .option("inferSchema", "false") \
-        .option("encoding", "UTF-8") \
-        .load("/nfs-data/datasets/smartcard_data/cards_0823/cards/0519.txt")
-
-    data = preprocessing(data_raw, bus_latlong, subway_latlong)
-    data.cache()
-    print(data.count())
-    cache.append(data)
 
 def udf_station_type(t):
     if t == 131:
@@ -101,15 +102,26 @@ def distance(lat1, lon1, lat2, lon2):
     return 12742 * asin(sqrt(a)) #2*R*asin...
 
 def get_points(from_time, to_time, date, station_type, direction, boundary, threshold=0, grid_scale=5):
-    # weekday
+    
+
+    day_list = ['2017-01-20', '2017-04-05', '2017-05-16', '2017-05-17', '2017-05-18', '2017-05-19', \
+		'2017-05-20', '2017-05-21', '2017-05-22' ]
+    weekday_list = ['2017-01-20', '2017-04-05', '2017-05-16', '2017-05-17', '2017-05-18', '2017-05-19', '2017-05-22' ]
+    weekend_list = ['2017-05-20', '2017-05-21']
+    weekday_count = 7
+    weekend_count = 2
+    # weekday : 0, 1, 2, 3, 4, 5, 8
+    # weekend : 6, 7
     if date == 0 or date == 1:
-        day = '2017-05-20'
-        data = cache[0]
-    else: # weekend
-        day = '2017-05-19'
-        data = cache[1]
-    timerange_from = day + ' ' + from_time + ':00'
-    timerange_to = day + ' ' + to_time + ':00'
+        data = cache[0].union(cache[1]).dropDuplicates()
+        data = data.union(cache[2]).dropDuplicates()
+        data = data.union(cache[3]).dropDuplicates()
+        data = data.union(cache[4]).dropDuplicates()
+        data = data.union(cache[5]).dropDuplicates()
+        data = data.union(cache[8]).dropDuplicates()
+    else:
+        data = cache[6].union(cache[7]).dropDuplicates() 
+    print("data row: "+str(data.count()))
     station_type_str = ','.join(station_type)
     x2 = boundary[0]
     x1 = boundary[1]
@@ -118,15 +130,31 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
 
     distance_lat = int(distance(y1,x1,y2,x1) / grid_scale)
     distance_lng = int(distance(y1,x1,y1,x2) / grid_scale)
-    print(distance_lat)
-    print(distance_lng)
+    print("distance_lat: "+str(distance_lat))
+    print("distance_lng: "+str(distance_lng))
     grid = 100
     distance_lat = grid if distance_lat < grid else distance_lat
     distance_lng = grid if distance_lng < grid else distance_lng
     lat_step = (y2-y1)/distance_lat
     lng_step = (x1-x2)/distance_lng
-
-    filter_str = " timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "'"
+    filter_str = "" 
+    if date == 0 or date == 1:
+        for day in weekday_list:
+            timerange_from = day + ' ' + from_time + ':00'
+            timerange_to = day + ' ' + to_time + ':00'
+            if day != weekday_list[-1]:
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "') or"
+            else:
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "')"
+    else:
+        for day in weekend_list:
+            timerange_from = day + ' ' + from_time + ':00'
+            timerange_to = day + ' ' + to_time + ':00'
+            if day != weekday_list[-1]:
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "') or"
+            else:
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "')"
+            
     filter_str += " and station_type in (" + station_type_str + ")"
     filter_str += " and latitude > " + str(y1) + " and latitude < " + str(y2) + " and longitude > " + str(x2) + " and longitude < " + str(x1)
     print(filter_str)
@@ -136,17 +164,23 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
     data9 = data_filtered.withColumn("agg_latitude", (((col("latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
                          .withColumn("agg_longitude", (((col("longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
     data10 = data9.groupBy("agg_latitude", "agg_longitude").agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff"))
+    #average count
+    avg_count = 1
+    if date == 0 or date == 1:
+        avg_count = 7 # the number of weekday
+    else:
+        avg_count = 2 # the number of weekend
 
     if direction == 0:
-        result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_geton").alias("count")).where("count >= " + str(threshold)) \
+        result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_geton").alias("count")).where("count >= " + str(threshold*avg_count)) \
                  .collect()
     elif direction == 1:
-        result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_getoff").alias("count")).where("count >= " + str(threshold)) \
+        result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_getoff").alias("count")).where("count >= " + str(threshold*avg_count)) \
                  .collect()
     else:
-        result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")).where("count >= " + str(threshold)) \
+        result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")).where("count >= " + str(threshold*avg_count)) \
                  .collect()
-    print(len(result))
+    print("result row: "+str(len(result)))
     print(result[0:10])
     return result
 
