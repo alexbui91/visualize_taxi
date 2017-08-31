@@ -159,8 +159,6 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
     else: # weekend
         day = '2017-06-25'
         data = cache[1]
-    #timerange_from = day + ' ' + from_time + ':00'
-    #timerange_to = day + ' ' + to_time + ':00'
     station_type_str = ','.join(station_type)
     x2 = boundary[0]
     x1 = boundary[1]

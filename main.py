@@ -1,6 +1,6 @@
 import os
 import sys
-
+import time
 import string
 
 import cherrypy
@@ -45,8 +45,11 @@ class HeatMap(object):
         tm = json.loads(time)
         st = json.loads(station_type)
         bd = json.loads(boundary)
-        data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
-        return json.dumps({'data': data})
+	start = time.time()    
+	data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
+        end = time.time()
+	print("query time: %.2f\n" % (end-start))
+	return json.dumps({'data': data})
 
 @cherrypy.expose
 class Station(object):
@@ -81,8 +84,8 @@ if __name__ == '__main__':
         execfile(activate_this, dict(__file__=activate_this))
 
     import get_data as g
-    import get_smartcard as s
-    #import get_smartcard_0823 as s
+    #import get_smartcard as s
+    import get_smartcard_0823 as s
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
