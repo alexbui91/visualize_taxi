@@ -35,15 +35,15 @@ def load_data():
             .load("./raw/subway_station.csv")
 
     # Raw data
-    data_path=[ "/nfs-data/datasets/smartcard_data/cards_0823/cards/0120.txt", \ #Fri
-		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0405.txt", \ #Wed
-		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0516.txt", \ #Tue
-		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0517.txt", \ #Wed
-		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0518.txt", \ #Thu
-		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0519.txt", \ #Fri
-                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0520.txt", \ #Sat
-                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0521.txt", \ #Sun
-                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0522.txt"    #Mon
+    data_path=[ "/nfs-data/datasets/smartcard_data/cards_0823/cards/0120.txt", 
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0405.txt", 
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0516.txt",  
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0517.txt",  
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0518.txt",  
+		"/nfs-data/datasets/smartcard_data/cards_0823/cards/0519.txt",
+                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0520.txt", 
+                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0521.txt", 
+                "/nfs-data/datasets/smartcard_data/cards_0823/cards/0522.txt"    
 	      ]
     for path_ in data_path:
         data_raw = spark.read \
@@ -112,7 +112,7 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
     weekend_count = 2
     # weekday : 0, 1, 2, 3, 4, 5, 8
     # weekend : 6, 7
-    if date == 0 and date == 1:
+    if date == 0 or date == 1:
         data = cache[0].union(cache[1]).dropDuplicates()
         data = data.union(cache[2]).dropDuplicates()
         data = data.union(cache[3]).dropDuplicates()
@@ -121,6 +121,7 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
         data = data.union(cache[8]).dropDuplicates()
     else:
         data = cache[6].union(cache[7]).dropDuplicates() 
+    print("data row: "+str(data.count()))
     station_type_str = ','.join(station_type)
     x2 = boundary[0]
     x1 = boundary[1]
@@ -129,8 +130,8 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
 
     distance_lat = int(distance(y1,x1,y2,x1) / grid_scale)
     distance_lng = int(distance(y1,x1,y1,x2) / grid_scale)
-    print(distance_lat)
-    print(distance_lng)
+    print("distance_lat: "+str(distance_lat))
+    print("distance_lng: "+str(distance_lng))
     grid = 100
     distance_lat = grid if distance_lat < grid else distance_lat
     distance_lng = grid if distance_lng < grid else distance_lng
@@ -142,17 +143,17 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
             timerange_from = day + ' ' + from_time + ':00'
             timerange_to = day + ' ' + to_time + ':00'
             if day != weekday_list[-1]:
-                filter_str = " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "') or"
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "') or"
             else:
-                filter_str = " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "')"
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "')"
     else:
         for day in weekend_list:
             timerange_from = day + ' ' + from_time + ':00'
             timerange_to = day + ' ' + to_time + ':00'
             if day != weekday_list[-1]:
-                filter_str = " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "') or"
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "') or"
             else:
-                filter_str = " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "')"
+                filter_str += " (timerange >= '" + timerange_from + "' and timerange < '" + timerange_to + "')"
             
     filter_str += " and station_type in (" + station_type_str + ")"
     filter_str += " and latitude > " + str(y1) + " and latitude < " + str(y2) + " and longitude > " + str(x2) + " and longitude < " + str(x1)
@@ -165,7 +166,7 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
     data10 = data9.groupBy("agg_latitude", "agg_longitude").agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff"))
     #average count
     avg_count = 1
-    if date == 0 and date == 1:
+    if date == 0 or date == 1:
         avg_count = 7 # the number of weekday
     else:
         avg_count = 2 # the number of weekend
@@ -179,7 +180,7 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
     else:
         result = data10.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")).where("count >= " + str(threshold*avg_count)) \
                  .collect()
-    print(len(result))
+    print("result row: "+str(len(result)))
     print(result[0:10])
     return result
 

@@ -159,6 +159,7 @@ def get_points(from_time, to_time, date, station_type, direction, boundary, thre
     else: # weekend
         day = '2017-06-25'
         data = cache[1]
+    print("data row: " + str(len(data)))
     timerange_from = day + ' ' + from_time + ':00'
     timerange_to = day + ' ' + to_time + ':00'
     station_type_str = ','.join(station_type)
