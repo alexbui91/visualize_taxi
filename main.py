@@ -1,6 +1,6 @@
 import os
 import sys
-
+import time
 import string
 
 import cherrypy
@@ -45,8 +45,11 @@ class HeatMap(object):
         tm = json.loads(time)
         st = json.loads(station_type)
         bd = json.loads(boundary)
-        data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
-        return json.dumps({'data': data})
+	start = time.time()    
+	data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
+        end = time.time()
+	print("query time: %.2f\n" % (end-start))
+	return json.dumps({'data': data})
 
 @cherrypy.expose
 class Station(object):
@@ -102,9 +105,9 @@ if __name__ == '__main__':
             'tools.staticdir.dir': './public/fonts'
         }
     }
-    # g.init_spark()
-    # s.init_spark()
-    # s.load_data()
+    g.init_spark()
+    s.init_spark()
+    s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
