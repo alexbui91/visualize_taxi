@@ -34,7 +34,7 @@
     }
 
     #map {
-        height: 600px;
+        height: calc(100vh - 120px);
     }
     /* Optional: Makes the sample page fill the window. */
 
@@ -163,7 +163,7 @@
                             <div class="col-sm-8 time-range">
                                 <input id="time-range" type="text" value="" data-slider-min="0" data-slider-max="48" data-slider-step="1" data-slider-value="[0,48]" />
                                 <div class='time-range-label'>
-                                    <span class='start'>00:00</span>&nbsp-&nbsp<span class='end'>24:00</span>
+                                    <span class='start'>05:00</span>&nbsp-&nbsp<span class='end'>05:00</span>
                                 </div>
                             </div>
                         </div>
@@ -235,8 +235,11 @@
         step: 100
       }
     }
+    time_offset = 5
     start_zoom = 0
     is_draw = false
+    station = []
+    station_path = []
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -265,7 +268,7 @@
     function initLeaflet() {
         var map = L.map('map', {
             center: [37.5717, 126.93923],
-            zoom: 8
+            zoom: 10
         });
         var roadMutant = L.gridLayer.googleMutant({
             maxZoom: 24,
@@ -370,9 +373,10 @@
     }
 
     function process_slider(value) {
-        arr = []
+        // mid is 24h
+        var arr = []
         for (x in value) {
-            arr.push(processLabel(value[x]))
+          arr.push(processLabel(value[x]))
         }
         $('.start').html(arr[0])
         $('.end').html(arr[1])
@@ -380,14 +384,22 @@
     }
 
     function processLabel(value) {
-        time = value / 2
-        re = value % 2
-        h = ''
+        // get real clock time with offset of five or other 
+        var time = getRealTime(value)
+        time = time % 24
+        var res = process_digit(value, time)
+        return res
+    }
+
+    function process_digit(value, time){
+        // add 30 or 00 to clock time
+        var h = ''
+        var re = value % 2
         if (time < 10)
-            h = '0' + parseInt(time)
+            h = '0' + time
         else
-            h = '' + parseInt(time)
-        res = h + ':'
+            h = '' + time
+        var res = h + ':'
         if (re != 0)
             res += '30'
         else
@@ -395,6 +407,12 @@
         return res
     }
 
+    function getRealTime(value){
+        var time = parseInt(value / 2)
+        time += time_offset
+        // if(time > 24)
+        return time
+    }
     function getCheckBox(obj) {
         return obj.map(function() {
             return this.value;
@@ -449,9 +467,24 @@
         d = $('#day-filter').val()
         d = d <= 2 ? d : 0
         bd = get_boundary(map)
+        f1 = getRealTime(t[0])
+        if(f1 < 24){
+          f1 = process_digit(t[0], f1)
+          t1 = '24:00'
+          time1 = [t1, f1]
+        }else{
+          time1 = []
+        }
+        t2 = getRealTime(t[1])
+        if(t2 > 24){
+          f2 = '00:00'
+          t2 = process_digit(t[1], t2)
+          time2 = [f2, t2]
+        }else{
+          time2 = []
+        }
         return {
-            tfrom: processLabel(t[0]),
-            tto: processLabel(t[1]),
+            time: JSON.stringify([time1, time2])
             date: d,
             station_type: JSON.stringify(trans),
             usage: us,
@@ -501,6 +534,50 @@
         return []
     }
 
+    function get_station(){
+        enableLoading()
+        $.post('http://147.47.206.14:31080/get_subwaypoints', {}, function(res) {
+            disableLoading()
+            if (res.data && res.data.length) {
+                station = group_station(res.data)
+                draw_station()
+            } else {
+              station = []
+            }
+        }, 'json').fail(function(e) {
+            alert('An error occured during processing')
+            disableLoading()
+        });
+    }
+
+    function group_station(data){
+        curr_line = ''
+        curr_line_data = null
+        tmp = {}
+        var obj
+        for(x in data){
+          obj = data[x]
+          if(curr_line != obj[1]){
+              if(curr_line_data){
+                tmp[curr_line] = curr_line_data
+              } 
+              curr_line = obj[1]
+              curr_line_data = []
+          }
+          curr_line_data.push([obj[3], obj[2], obj[0]])
+        }
+        tmp[curr_line] = curr_line_data
+        return tmp
+    }
+    function draw_station(){
+      obj = station['2']
+      console.log(obj)
+      var path = L.polyline(obj, {color: 'red'}).addTo(map);
+      station_path.push(path)
+      // for(x in station){
+
+      // }
+    }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }

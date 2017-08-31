@@ -41,10 +41,11 @@ class HeatMap(object):
 
     @cherrypy.tools.accept(media='text/plain')
     @cherrypy.expose
-    def POST(self, tfrom=0, tto=0, date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
+    def POST(self, time="[]", date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
+        tm = json.loads(time)
         st = json.loads(station_type)
         bd = json.loads(boundary)
-        data = s.get_points(tfrom, tto, int(date), st, usage, bd, int(threshold))
+        data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
         return json.dumps({'data': data})
 
 @cherrypy.expose
@@ -81,7 +82,7 @@ if __name__ == '__main__':
 
     import get_data as g
     import get_smartcard as s
-
+    #import get_smartcard_0823 as s
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
