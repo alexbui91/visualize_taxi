@@ -40,6 +40,11 @@
       line 9: #8d764b
 
     */
+    @media (min-width: 1800px){
+      .col-xlg-4 {
+          width: 33.33333%;
+      }
+    }
     @media (min-width: 1200px) {
         .container {
             width: calc(100vw - 50px);
@@ -92,6 +97,7 @@
         border-radius: 10px;
         border: 1px solid #ccc;
         padding: 20px 15px;
+        margin-bottom: 20px
     }
 
     .action h3 {
@@ -126,7 +132,23 @@
       position: absolute;
       right: -15px;
     }*/
-
+    .form-group, .subway-line{
+      user-select: none;
+    }
+    .subway-line label{
+      font-weight: normal;
+      font-size: 13px;
+    }
+    .subway-line input{
+      margin-right: 5px
+    }
+    .subway-group{
+      margin-bottom: 0
+    }
+    .form-check-inline{
+      display: inline-block;
+      margin-right: 10px
+    }
     .threshold .slider-track-high,
     #slider12c .slider-track-high {
         background: #cbcbcb
@@ -220,12 +242,23 @@
                                 </div>
                             </div>
                         </div>
+                        
                         <div class='row submit'>
                             <div class='col-lg-12'>
                                 <button type="button" id='submit-filter' class="btn btn-primary">Submit</button>
                             </div>
                         </div>
                     </form>
+                </div>
+                <div class='action'>
+                  <div class='row'>
+                    <div class='subway-line col-xlg-4 col-lg-6 col-md-6 col-sm-6 col-xs-6'>
+                      <label>
+                          <input type="checkbox" value="ALL" class="station-line-all" checked>All
+                      </label>  
+                    </div>
+                    <span id='station'></span>  
+                  </div>
                 </div>
             </div>
         </div>
@@ -251,7 +284,7 @@
     time_offset = 5
     start_zoom = 0
     is_draw = false
-    station_path = []
+    station_path = {}
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -338,7 +371,7 @@
 
     function bind_direction() {
         var obj = $('.usage:checked')
-        obj.click(function() {
+        obj.change(function() {
             checked = getCheckBox($('.usage:checked'))
             if (!checked.length) {
                 $(this).prop('checked', true)
@@ -579,17 +612,51 @@
       var obj
       // s = 'K'
       // color = station_color[s]
-        // obj = station_lines[s]
+      // obj = station_lines[s]
       for(s in station_lines){
-        color = station_color[s]
+        color = station_info[s].color
         obj = station_lines[s]
-        for(x in obj){
-            // loop each branch of station
-            var path = L.polyline(obj, {
-              color: color, 
-              weight: 1 
-            }).addTo(map);
-            station_path.push(path)
+        var path = L.polyline(obj, {
+          color: color, 
+          weight: 2
+        }).addTo(map);
+        station_path[s] = path
+      }
+    }
+
+    function render_station(){
+        str = ''
+        for(x in station_info){
+            str += get_station_input(x, station_info[x].name, station_info[x].color)
+        }
+        $('#station').html(str)
+        var stl = $('.station-line')
+        stl.change(get_station_change)
+        var st = $('.station-line-all')
+        st.change(function(){
+            var val = st.is(':checked')
+            for(var x = 0; x < stl.length; x++){
+              $(stl[x]).prop('checked', val)
+            }
+            get_station_change()
+        })
+    }
+    function get_station_input(value, name, color){
+      var str = '<div class="subway-line col-xlg-4 col-lg-6 col-md-6 col-sm-6 col-xs-6">'
+              + '<label>'
+              + '<input type="checkbox" value="'+ value +'" class="station-line" checked>' + name
+              + '&nbsp;<i class="fa fa-certificate color-box" style="color: '+color+'"></i>'
+              + '</label>'
+              + '</div>'
+      return str
+    }
+    function get_station_change(){
+      var checked = getCheckBox($('.station-line:checked'))
+      for(x in station_path){
+        if(checked.indexOf(x) == -1){
+          map.removeLayer(station_path[x]);
+        }else if(!map.hasLayer(station_path[x])){
+          map.addLayer(station_path[x]);
         }
       }
     }
@@ -601,6 +668,7 @@
         // https://github.com/seiyria/bootstrap-slider
         // *https://www.patrick-wied.at/static/heatmapjs/
         // https://github.com/Leaflet/Leaflet.heat
+        render_station()
         thres = new Slider('#threshold', {
             'reversed': false,
             'max': threshold.group1.max,
@@ -626,10 +694,9 @@
         bind_transport_type()
         bind_direction()
         setTimeout(draw_station, 100)
-        
     });
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script>
+    <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script> -->
 </body>
 
 </html>
