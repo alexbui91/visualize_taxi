@@ -658,7 +658,8 @@
     }
     function render_marker_point(obj){
       var mk = L.marker(obj, {
-        icon: marker_round
+        icon: marker_round,
+        opacity: 0.3
       })
       mk.bindPopup('<p>'+obj['STATION_NM']+'역</p>')
         .on('mouseover', function (e) {
