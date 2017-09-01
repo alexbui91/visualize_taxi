@@ -671,12 +671,12 @@
       return mk
     }
     function display_markers(flag){
+        var checked = getCheckBox($('.station-line:checked'))
         for(x in station_marker){
             if(!flag){
                 map.removeLayer(station_marker[x])
-            }else if(!map.hasLayer(station_marker[x])){
+            }else if(checked.indexOf(x) != -1 && !map.hasLayer(station_marker[x])){
                 map.addLayer(station_marker[x])
-
             }
         }
     }
@@ -711,8 +711,10 @@
       for(x in station_path){
         if(checked.indexOf(x) == -1){
           map.removeLayer(station_path[x]);
+          map.removeLayer(station_marker[x]);
         }else if(!map.hasLayer(station_path[x])){
           map.addLayer(station_path[x]);
+          map.addLayer(station_marker[x]);
         }
       }
     }
