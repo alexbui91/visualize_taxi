@@ -264,6 +264,7 @@
         </div>
     </div>
     <script>
+    base_url = './static/css/images'
     map = null
     helpbt = $('.help')
     loading_container = $('#loading')
@@ -281,10 +282,18 @@
         step: 100
       }
     }
+    zoom_to_marker = 14
     time_offset = 5
     start_zoom = 0
     is_draw = false
     station_path = {}
+    station_marker = {}
+    var marker_round = L.icon({
+        iconUrl: base_url + '/round_marker.png',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    })
+    var obj
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
     // Brisbane, Australia.
@@ -463,6 +472,11 @@
                 waiting_for_map = setTimeout(update_data, 500)
             }
             start_zoom = cur_zoom
+            if(cur_zoom >= zoom_to_marker){
+                display_markers(true)
+            }else{
+                display_markers(false)
+            }
         })
         // m.on('moveend', function() { 
         //   clearTimeout(waiting_for_map)
@@ -609,7 +623,6 @@
     }
     function draw_station(){
       var color = ''
-      var obj
       // s = 'K'
       // color = station_color[s]
       // obj = station_lines[s]
@@ -620,10 +633,52 @@
           color: color, 
           weight: 2
         }).addTo(map);
+        var marks = render_markers(obj)
+        station_marker[s] = marks
         station_path[s] = path
       }
     }
+    function render_markers(obj){
+        var marks = []
+        if(obj[0].length){
+          //if line contains multiple paths
+          for(x in obj){
+            for(p in obj[x]){
+              var mk = render_marker_point(obj[x][p])
+              marks.push(mk)
+            }
+          }
+        }else{
+          for(x in obj){
+            var mk = render_marker_point(obj[x])
+            marks.push(mk)
+          }
+        }
+        return L.layerGroup(marks)
+    }
+    function render_marker_point(obj){
+      var mk = L.marker(obj, {
+        icon: marker_round
+      })
+      mk.bindPopup('<p>'+obj['STATION_NM']+'역</p>')
+        .on('mouseover', function (e) {
+            this.openPopup();
+        })
+        .on('mouseout', function (e) {
+            this.closePopup();
+        });
+      return mk
+    }
+    function display_markers(flag){
+        for(x in station_marker){
+            if(!flag){
+                map.removeLayer(station_marker[x])
+            }else if(!map.hasLayer(station_marker[x])){
+                map.addLayer(station_marker[x])
 
+            }
+        }
+    }
     function render_station(){
         str = ''
         for(x in station_info){
