@@ -1,6 +1,7 @@
 from pyspark.sql import *
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+from pyspark import SparkConf
 import argparse
 import properties as p
 import time
@@ -11,9 +12,15 @@ cache = []
 
 def init_spark():
     global spark
-    if spark is None: 
-        spark = SparkSession.builder.appName("smartcard").config("spark.driver.memory", "128g").getOrCreate()
-    spark.conf.set("spark.executor.memory", "64g")
+    if spark is None:
+        conf = (SparkConf().setAppName("smartcard"))
+        conf.set("spark.driver.memory", "128g")
+        conf.set("spark.executor.memory", "64g")
+        conf.set("spark.ui.port", "31040")
+        conf.set("spark.sql.shuffle.partitions", "200")
+        spark = SparkSession.builder.config(conf=conf).getOrCreate()
+    #spark.conf.set("spark.executor.memory", "64g")
+    #spark.conf.set("spark.ui.port", "31040")
 
 
 def load_data():
@@ -62,8 +69,10 @@ def load_data():
     data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data_new = data.union(taxi_data)
     #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
-    data_new_1 = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00'")
-    data_new_2 = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00'")
+    data_new_1_ = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00'")
+    data_new_2_ = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00'")
+    data_new_1 = data_new_1_.coalesce(100)
+    data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
     data_new_2.cache()
     print(data_new_1.printSchema())
@@ -86,8 +95,10 @@ def load_data():
     data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data_new = data.union(taxi_data)
     #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
-    data_new_1 = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00'")
-    data_new_2 = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00'")
+    data_new_1_ = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00'")
+    data_new_2_ = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00'")
+    data_new_1 = data_new_1_.coalesce(100)
+    data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
     data_new_2.cache()
     print(data_new_1.count())
