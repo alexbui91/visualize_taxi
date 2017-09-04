@@ -62,10 +62,15 @@ def load_data():
     data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data_new = data.union(taxi_data)
     #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
-    data_new.cache()
-    print(data_new.printSchema())
-    print(data_new.count())
-    cache.append(data_new)
+    data_new_1 = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00'")
+    data_new_2 = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00'")
+    data_new_1.cache()
+    data_new_2.cache()
+    print(data_new_1.printSchema())
+    print(data_new_1.count())
+    print(data_new_2.count())
+    cache.append(data_new_1)
+    cache.append(data_new_2)
 
     # Weekend
     df = df_raw.filter("_c1 == '1'").withColumn("fixed_date", lit("20170625000000"))
@@ -81,9 +86,15 @@ def load_data():
     data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data_new = data.union(taxi_data)
     #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
-    data_new.cache()
-    print(data_new.count())
-    cache.append(data_new)
+    data_new_1 = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00'")
+    data_new_2 = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00'")
+    data_new_1.cache()
+    data_new_2.cache()
+    print(data_new_1.count())
+    print(data_new_2.count())
+    cache.append(data_new_1)
+    cache.append(data_new_2)
+
 
 def preprocess_taxi_data(data_raw, road_latlong):
     data1 = data_raw.select(col("_c0").alias("tp_link_id"), (col("_c2").cast("integer")*1800 + unix_timestamp(col("fixed_date"), "yyyyMMddHHmmss").cast("long")).cast("timestamp").alias("timerange"), \
@@ -155,10 +166,12 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
     # weekday
     if date == 0 or date == 1:
         day = '2017-06-26'
-        data = cache[0]
+        data1_ = cache[0]
+        data2_ = cache[1]
     else: # weekend
         day = '2017-06-25'
-        data = cache[1]
+        data1_ = cache[2]
+        data2_ = cache[3]
     station_type_str = ','.join(station_type)
     x2 = boundary[0]
     x1 = boundary[1]
@@ -175,18 +188,25 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
     lat_step = (y2-y1)/distance_lat
     lng_step = (x1-x2)/distance_lng
     
-    filter_str = "((1 == 2)"
+    filter_str1, filter_str2, filter_str = "", "", ""
     if (len(time0) > 0):
-       filter_str += " or (timerange >= '" + (day + ' ' + time0[0] + ':00') + "' and timerange < '" + (day + ' ' + time0[1] + ':00') + "')"
+       filter_str1 += " (timerange >= '" + (day + ' ' + time0[0] + ':00') + "' and timerange < '" + (day + ' ' + time0[1] + ':00') + "')"
+    else:
+       filter_str1 += "(1 == 2)"
     if (len(time1) > 0):
-       filter_str += " or (timerange >= '" + (day + ' ' + time1[0] + ':00') + "' and timerange < '" + (day + ' ' + time1[1] + ':00') + "')"
-    filter_str += ")"
+       filter_str2 += " (timerange >= '" + (day + ' ' + time1[0] + ':00') + "' and timerange < '" + (day + ' ' + time1[1] + ':00') + "')"
+    else:
+       filter_str2 += "(1 == 2)"
     filter_str += " and station_type in (" + station_type_str + ")"
     filter_str += " and latitude > " + str(y1) + " and latitude < " + str(y2) + " and longitude > " + str(x2) + " and longitude < " + str(x1)
-    print(filter_str)
+    filter_str1 += filter_str
+    filter_str2 += filter_str
+    print(filter_str1)
     
     # Filter data and aggregate by grid
-    data_filtered = data.filter(filter_str)
+    data_filtered1 = data1_.filter(filter_str1)
+    data_filtered2 = data2_.filter(filter_str2)
+    data_filtered = data_filtered1.union(data_filtered2)
     data1 = data_filtered.withColumn("agg_latitude", (((col("latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
                          .withColumn("agg_longitude", (((col("longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
     data2 = data1.groupBy("agg_latitude", "agg_longitude").agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff"))
