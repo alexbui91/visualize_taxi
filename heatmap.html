@@ -177,7 +177,7 @@
                         <div class="form-group">
                             <label for="day-filter" class="col-sm-4 control-label">Threshold</label>
                             <div class="col-sm-8 threshold">
-                                <input id="threshold" type="text" value="" data-slider-value="0" data-slider-min="0" />
+                                <input id="threshold" type="text" value="" data-slider-min="0" />
                                 <div class='time-range-label'>
                                     <span class='threshold-value'>0</span>
                                 </div>
@@ -207,17 +207,17 @@
                             <div class="col-sm-8">
                                 <div class="checkbox">
                                     <label>
-                                        <input type="checkbox" value="0" class='transport-type' checked> Taxi
+                                        <input type="checkbox" value="0" class='transport-type'> Taxi
                                     </label>
                                 </div>
                                 <div class="checkbox">
                                     <label>
-                                        <input type="checkbox" value="1" class='transport-type' checked> Bus
+                                        <input type="checkbox" value="1" class='transport-type'> Bus
                                     </label>
                                 </div>
                                 <div class="checkbox">
                                     <label>
-                                        <input type="checkbox" value="2" class='transport-type' checked> Night Bus
+                                        <input type="checkbox" value="2" class='transport-type'> Night Bus
                                     </label>
                                 </div>
                                 <div class="checkbox">
@@ -275,11 +275,13 @@
     threshold = {
       group1: {
         max: 15000,
-        step: 500
+        step: 500,
+        default: 8000
       },
       group2: {
         max: 2000,
-        step: 100
+        step: 100,
+        default: 1000
       }
     }
     zoom_to_marker = 13
@@ -393,20 +395,19 @@
         obj.change(function() {
             checked = getCheckBox($('.transport-type:checked'))
             // check if has subway in filter
-
             if (checked.indexOf('0') != -1 || checked.indexOf('3') != -1) {
-                change_threshold(threshold.group1.max, threshold.group1.step)
+                change_threshold(threshold.group1.max, threshold.group1.step, threshold.group1.default)
             } else {
-                change_threshold(threshold.group2.max, threshold.group2.step)
+                change_threshold(threshold.group2.max, threshold.group2.step, threshold.group2.default)
             }
         })
     }
 
-    function change_threshold(threshold, step) {
+    function change_threshold(threshold, step, def) {
         if (thres) {
             thres.setAttribute('max', threshold)
             thres.setAttribute('step', step)
-            thres.setValue(0)
+            thres.setValue(def)
         }
 
     }
@@ -468,15 +469,11 @@
             var cur_zoom = m.getZoom()
             // console.log(cur_zoom, start_zoom)
             clearTimeout(waiting_for_map)
-            if (is_draw && cur_zoom > start_zoom) {
-                waiting_for_map = setTimeout(update_data, 500)
-            }
+            // if (is_draw && cur_zoom > start_zoom) {
+            waiting_for_map = setTimeout(update_data, 500)
+            // }
             start_zoom = cur_zoom
-            if(cur_zoom >= zoom_to_marker){
-                display_markers(true)
-            }else{
-                display_markers(false)
-            }
+            check_display_markers(cur_zoom)
         })
         // m.on('moveend', function() { 
         //   clearTimeout(waiting_for_map)
@@ -670,10 +667,19 @@
         });
       return mk
     }
+
+    function check_display_markers(cur_zoom){
+      if(cur_zoom >= zoom_to_marker){
+          display_markers(true)
+      }else{
+          display_markers(false)
+      }
+    }
+
     function display_markers(flag){
         var checked = getCheckBox($('.station-line:checked'))
         for(x in station_marker){
-            if(!flag){
+            if(!flag || checked.indexOf(x) == -1){
                 map.removeLayer(station_marker[x])
             }else if(checked.indexOf(x) != -1 && !map.hasLayer(station_marker[x])){
                 map.addLayer(station_marker[x])
@@ -711,12 +717,12 @@
       for(x in station_path){
         if(checked.indexOf(x) == -1){
           map.removeLayer(station_path[x]);
-          map.removeLayer(station_marker[x]);
         }else if(!map.hasLayer(station_path[x])){
           map.addLayer(station_path[x]);
-          map.addLayer(station_marker[x]);
         }
       }
+      var cur_zoom = map.getZoom()
+      check_display_markers(cur_zoom)
     }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -731,6 +737,7 @@
             'reversed': false,
             'max': threshold.group1.max,
             'step': threshold.group1.step,
+            'value': threshold.group1.default,
             formatter: function(value) {
                 $('.threshold-value').html(numberWithCommas(value))
                 return value
