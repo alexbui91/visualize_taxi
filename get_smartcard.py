@@ -75,7 +75,7 @@ def load_data():
     data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
     data_new_2.cache()
-    print(data_new_1.printSchema())
+    #print(data_new_1.printSchema())
     print(data_new_1.count())
     print(data_new_2.count())
     cache.append(data_new_1)

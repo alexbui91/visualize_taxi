@@ -5,3 +5,4 @@ spark-warehouse/
 *.log
 *.pyc
 host.py
+get_smartcard.py

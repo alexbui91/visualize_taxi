@@ -84,8 +84,8 @@ if __name__ == '__main__':
         execfile(activate_this, dict(__file__=activate_this))
 
     import get_data as g
-    import get_smartcard as s
-    #import get_smartcard_0823 as s
+    #import get_smartcard as s
+    import get_smartcard_0823 as s
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
@@ -121,8 +121,8 @@ if __name__ == '__main__':
         }
     }
     # g.init_spark()
-    # s.init_spark()
-    # s.load_data()
+    s.init_spark()
+    s.load_data()
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
