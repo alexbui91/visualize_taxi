@@ -546,7 +546,7 @@
         if (valid_loading) {
             valid_loading = false
             enableLoading()
-            $.post('http://147.47.206.14:31080/get_heat_data', filter, function(res) {
+            $.post('http://147.47.206.12:31080/get_heat_data', filter, function(res) {
                 valid_loading = true
                 disableLoading()
                 if (res.data && res.data.length) {
