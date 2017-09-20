@@ -862,10 +862,10 @@
         // L.marker(marker, {icon: arrowIcon}).addTo(map);
     }
     function remove_vectors(){
-        // for(x in vectors){
-        //     map.removeLayer(vectors[x])
-        // }
-        map.removeLayer(vectors)
+        for(x in vectors){
+            map.removeLayer(vectors[x])
+        }
+        // map.removeLayer(vectors)
     }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
