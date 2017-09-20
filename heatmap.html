@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="./static/css/font-awesome.min.css">
     <link href="./static/css/leaflet.css" rel="stylesheet" type="text/css" />
+    <link href="./static/css/leaflet.label.css" rel="stylesheet" type="text/css" />
     <link href="./static/css/bootstrap-slider.min.css" rel="stylesheet" type="text/css" />
     <link rel="image_src" href="./static/css/images/bdi.png" />
     <meta property="og:image" content="./static/css/images/bdi.png" />
@@ -20,8 +21,15 @@
     <script src="./static/js/bootstrap-slider.min.js"></script>
     <!-- <script src="./static/js/heatmap.min.js"></script> -->
     <script src="./static/js/leaflet-heat.js"></script>
+    <script src="./static/js/leaflet.curve.js"></script>
+    <script src="./static/js/leaflet.rotatedMarker.js"></script>
+    <script src="./static/js/leaflet.label.js"></script>
+    
+    
+    <!-- <script src="./static/js/marker.rotation.js"></script> -->
+
     <script src="./static/js/underscore-min.js"></script>
-    <script src="./static/js/Leaflet.GoogleMutant.js"></script>
+    <!-- <script src="./static/js/Leaflet.GoogleMutant.js"></script> -->
     <script src="./static/js/station.js"></script>
     <script src="./static/js/station_color.js"></script>
     <!-- <script src="./static/js/leaflet-heatmap.js"></script> -->
@@ -175,11 +183,20 @@
                     <h3>Filter Options</h3>
                     <form class="form-horizontal">
                         <div class="form-group">
-                            <label for="day-filter" class="col-sm-4 control-label">Threshold</label>
+                            <label for="day-filter" class="col-sm-4 control-label">Heat Threshold</label>
                             <div class="col-sm-8 threshold">
                                 <input id="threshold" type="text" value="" data-slider-min="0" />
                                 <div class='time-range-label'>
-                                    <span class='threshold-value'>0</span>
+                                    <span class='threshold-value heat-threshold'>0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Pair Threshold</label>
+                            <div class="col-sm-8 threshold">
+                                <input id="pair-threshold" type="text" value="" data-slider-min="0" />
+                                <div class='time-range-label'>
+                                    <span class='threshold-value pair-threshold'>0</span>
                                 </div>
                             </div>
                         </div>
@@ -227,7 +244,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <!-- <div class="form-group">
                             <label for="day-filter" class="col-sm-4 control-label">Direction</label>
                             <div class="col-sm-8">
                                 <div class="checkbox">
@@ -241,7 +258,7 @@
                                     </label>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
                         
                         <div class='row submit'>
                             <div class='col-lg-12'>
@@ -276,13 +293,18 @@
       group1: {
         max: 15000,
         step: 500,
-        default: 8000
+        default: 2000
       },
       group2: {
         max: 2000,
         step: 100,
-        default: 1000
-      }
+        default: 200
+      },
+      group3: {
+        max: 15000,
+        step: 500,
+        default: 500
+      },
     }
     zoom_to_marker = 13
     time_offset = 5
@@ -290,11 +312,22 @@
     is_draw = false
     station_path = {}
     station_marker = {}
+    vectors = []
     var marker_round = L.icon({
         iconUrl: base_url + '/round_marker.png',
         iconSize: [20, 20],
         iconAnchor: [10, 10]
     })
+    var arrowIconGreen = L.icon({
+        iconUrl: base_url + '/arrow_big_green.png',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+    var arrowIconRed = L.icon({
+        iconUrl: base_url + '/arrow_red.png',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
     var obj
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
@@ -396,20 +429,21 @@
             checked = getCheckBox($('.transport-type:checked'))
             // check if has subway in filter
             if (checked.indexOf('0') != -1 || checked.indexOf('3') != -1) {
-                change_threshold(threshold.group1.max, threshold.group1.step, threshold.group1.default)
+                change_threshold(thres, threshold.group1.max, threshold.group1.step, threshold.group1.default)
+                change_threshold(thres_pair, threshold.group3.max, threshold.group3.step, threshold.group3.default)
             } else {
-                change_threshold(threshold.group2.max, threshold.group2.step, threshold.group2.default)
+                change_threshold(thres, threshold.group2.max, threshold.group2.step, threshold.group2.default)
+                change_threshold(thres_pair, threshold.group2.max, threshold.group2.step, threshold.group2.default)
             }
         })
     }
 
-    function change_threshold(threshold, step, def) {
-        if (thres) {
-            thres.setAttribute('max', threshold)
-            thres.setAttribute('step', step)
-            thres.setValue(def)
+    function change_threshold(obj, threshold, step, def) {
+        if (obj) {
+            obj.setAttribute('max', threshold)
+            obj.setAttribute('step', step)
+            obj.setValue(def)
         }
-
     }
 
     function process_slider(value) {
@@ -502,6 +536,7 @@
     function get_filter() {
         t = $('#time-range').slider('getValue')
         thh = thres.getValue()
+        pthh = thres_pair.getValue()
         trans = getCheckBox($('.transport-type:checked'))
         us = getCheckBox($('.usage:checked'))
         us = us.length == 2 ? 2 : us[0]
@@ -538,7 +573,8 @@
             station_type: JSON.stringify(trans),
             usage: us,
             boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat]),
-            threshold: thh
+            threshold: thh,
+            pair_threshold: pthh
         }
     }
     // send ajax post request to get new data
@@ -549,15 +585,21 @@
             $.post('http://147.47.206.12:31080/get_heat_data', filter, function(res) {
                 valid_loading = true
                 disableLoading()
-                if (res.data && res.data.length) {
-                    latlngs = res.data
+                // console.log(res)
+                if (res.data1 && res.data1.length) {
+                    latlngs = res.data1
                     // console.log(res.data.length)
-                    // map.fitBounds(L.latLngBounds(latlngs));
-                    max = _.max(res.data, function(value) { return value[2] })[2];
+                    map.fitBounds(L.latLngBounds(latlngs));
+                    max = _.max(res.data1, function(value) { return value[2] })[2];
                     heat.setOptions('max', max)
                     heat.setLatLngs(latlngs)
                 } else {
                     heat.setLatLngs([])
+                }
+                if (res.data2 && res.data2.length) {
+                    draw_vectors(res.data2)
+                } else {
+                    draw_vectors([])
                 }
             }, 'json').fail(function(e) {
                 valid_loading = true
@@ -585,7 +627,7 @@
 
     function get_station(){
         enableLoading()
-        $.post('http://147.47.206.14:31080/get_subwaypoints', {}, function(res) {
+        $.post('http://147.47.206.12:31080/get_subwaypoints', {}, function(res) {
             disableLoading()
             if (res.data && res.data.length) {
                 station = group_station(res.data)
@@ -724,6 +766,95 @@
       var cur_zoom = map.getZoom()
       check_display_markers(cur_zoom)
     }
+    function draw_vectors(data){
+        var obj, start, end, density
+        remove_vectors(vectors)
+        vectors = []
+        for(x in data){
+            // console.log(data[x])
+            obj = data[x]
+            start = [obj[0], obj[1]]
+            end = [obj[2], obj[3]]
+            density = obj[4]
+            var path = draw_curved_path(start, end, 'red', arrowIconRed, density)
+            vectors.push(path)
+        }
+    }
+    function draw_curved_path(start, end, color, icon, density, option){
+        if(!option){
+            option = {
+                color: color,
+                dashArray: 5,
+                // opacity: 0.,
+                lineJoin: 'miter'
+            }
+        }
+        var res = get_curved_points(start, end, icon)
+        var curve = L.curve(res.line, option).bindLabel('' + density, { noHide: true });
+        var group = L.layerGroup([res.marker, curve]).addTo(map);
+        return group
+    }
+
+    function get_curved_points(start, end, icon){
+        var y = end[0] - start[0]
+        var x = end[1] - start[1]
+        var dy = y * 110.574
+        var dx = x * 111.32 * Math.cos(y) 
+        // console.log(dy, dx)
+        var ym = (start[0] + end[0]) / 2 
+        var xm = (start[1] + end[1]) / 2 
+        var offset = 0.002
+        if (Math.abs(dx) > Math.abs(dy)){
+            // stretch horizon
+            ym += dy / 200
+            // end[0] += dy > 0 ? offset : -offset
+            marker = end.slice()
+        }else{
+            // stretch vertical
+            xm += dx / 100
+            // end[1] += dx > 0 ? offset : -offset
+            marker = end.slice()
+        }
+        // console.log('middle', ym, xm)
+        var marker = add_arrow([ym, xm], end, marker, icon)
+        return {marker: marker, line: ['M', start, 'Q',[ym, xm], end]}
+    }
+    function add_arrow(start, end, marker, icon){
+        firstPoint = start.slice()
+        secondPoint = end.slice()
+        //Code for putting arrow with appropriate rotation
+        var slope = ((secondPoint[1] - firstPoint[1]) / (secondPoint[0] - firstPoint[0])),
+            angle = Math.atan(slope),
+            rotation;
+        
+        //Shifting the graph Origin to point of start point
+        secondPoint[0] = secondPoint[0] - firstPoint[0];
+        secondPoint[1] = secondPoint[1] - firstPoint[1];
+        
+        //Fourth quadrant
+        if (secondPoint[0] > 0 && secondPoint[1] < 0) {
+            rotation = (angle * 180/Math.PI)/2;
+        }
+        //Second quadrant
+        else if (secondPoint[0] < 0 && secondPoint[1] > 0) {
+            rotation = 180 + (angle * 180/Math.PI);
+        }
+        //Third quadrant
+        else if (secondPoint[0] < 0 && secondPoint[1] < 0) {
+            rotation =  180 + (angle * 180/Math.PI);
+        }
+        //First quadrant
+        else if (secondPoint[0] > 0 && secondPoint[1] > 0) {
+            rotation = (angle * 180/Math.PI);
+        }
+        return L.marker(marker, {icon: icon, rotationAngle: rotation}).addTo(map);
+        // L.marker(marker, {icon: arrowIcon}).addTo(map);
+    }
+    function remove_vectors(){
+        for(x in vectors){
+            map.removeLayer(vectors[x])
+        }
+    }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
@@ -739,7 +870,17 @@
             'step': threshold.group1.step,
             'value': threshold.group1.default,
             formatter: function(value) {
-                $('.threshold-value').html(numberWithCommas(value))
+                $('.heat-threshold').html(numberWithCommas(value))
+                return value
+            }
+        })
+        thres_pair = new Slider('#pair-threshold', {
+            'reversed': false,
+            'max': threshold.group3.max,
+            'step': threshold.group3.step,
+            'value': threshold.group3.default,
+            formatter: function(value) {
+                $('.pair-threshold').html(numberWithCommas(value))
                 return value
             }
         })
@@ -759,6 +900,10 @@
         bind_transport_type()
         bind_direction()
         setTimeout(draw_station, 100)
+        // draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed)
+        // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen)
+        // draw_curved_path([37.376338, 126.657046], [37.585471, 127.307775], 'green')
+        // draw_curved_path([37.585471, 127.307775], [37.376338, 126.657046], 'red')
     });
     </script>
     <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script> -->

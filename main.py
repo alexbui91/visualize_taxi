@@ -41,7 +41,7 @@ class HeatMap(object):
 
     @cherrypy.tools.accept(media='text/plain')
     @cherrypy.expose
-    def POST(self, time="[]", date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
+    def POST(self, time="[]", date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0, pair_threshold=0):
         tm = json.loads(time)
         st = json.loads(station_type)
         bd = json.loads(boundary)
