@@ -309,21 +309,31 @@
     station_path = {}
     station_marker = {}
     vectors = []
+    var start_marker = L.icon({
+        iconUrl: base_url + '/start_round.png',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    })
+    var end_marker = L.icon({
+        iconUrl: base_url + '/end_marker.png',
+        iconSize: [30, 30],
+        iconAnchor: [15, 20]
+    })
     var marker_round = L.icon({
         iconUrl: base_url + '/round_marker.png',
         iconSize: [20, 20],
         iconAnchor: [10, 10]
     })
-    var arrowIconGreen = L.icon({
-        iconUrl: base_url + '/arrow_big_green.png',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-    });
-    var arrowIconRed = L.icon({
-        iconUrl: base_url + '/arrow_red.png',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-    });
+    // var arrowIconGreen = L.icon({
+    //     iconUrl: base_url + '/arrow_big_green.png',
+    //     iconSize: [20, 20],
+    //     iconAnchor: [10, 10]
+    // });
+    // var arrowIconRed = L.icon({
+    //     iconUrl: base_url + '/arrow_red.png',
+    //     iconSize: [20, 20],
+    //     iconAnchor: [10, 10]
+    // });
     var obj
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
@@ -694,7 +704,8 @@
     function render_marker_point(obj){
       var mk = L.marker(obj, {
         icon: marker_round,
-        opacity: 0.3
+        opacity: 0.3,
+        zIndexOffset: 9999
       })
       mk.bindPopup('<p>'+obj['STATION_NM']+'역</p>')
         .on('mouseover', function (e) {
@@ -772,22 +783,24 @@
             start = [obj[0], obj[1]]
             end = [obj[2], obj[3]]
             density = obj[4]
-            var path = draw_curved_path(start, end, 'red', arrowIconRed, density)
+            var path = draw_curved_path(start, end, 'green', arrowIconRed, density)
             vectors.push(path)
         }
     }
     function draw_curved_path(start, end, color, icon, density, option){
+        var w = Math.log(density)
+        w = w == 0  ? 1 : w
         if(!option){
             option = {
                 color: color,
-                dashArray: 5,
+                // dashArray: 5,
                 // opacity: 0.,
-                lineJoin: 'miter',
+                weight: w
             }
         }
         var res = get_curved_points(start, end, icon)
         var curve = L.curve(res.line, option);
-        var group = L.layerGroup([res.marker, curve]).addTo(map);
+        var group = L.layerGroup([res.start, res.end, curve]).addTo(map);
         return group
     }
 
@@ -803,17 +816,19 @@
         if (Math.abs(dx) > Math.abs(dy)){
             // stretch horizon
             ym += dy / 200
-            // end[0] += dy > 0 ? offset : -offset
+            end[0] += dy > 0 ? offset : -offset
             marker = end.slice()
         }else{
             // stretch vertical
-            xm += dx / 100
-            // end[1] += dx > 0 ? offset : -offset
+            xm += dx / 200
+            end[1] += dx > 0 ? offset : -offset
             marker = end.slice()
         }
         // console.log('middle', ym, xm)
-        var marker = add_arrow([ym, xm], end, marker, icon)
-        return {marker: marker, line: ['M', start, 'Q',[ym, xm], end]}
+        // var marker = add_arrow([ym, xm], end, marker, icon)
+        var start_m = L.marker(start.slice(), {icon: start_marker, zIndexOffset: 100});
+        var marker = L.marker(marker, {icon: icon, zIndexOffset: 200});
+        return {start: start_m, end: marker, line: ['M', start, 'Q',[ym, xm], end]}
     }
     function add_arrow(start, end, marker, icon){
         firstPoint = start.slice()
@@ -843,13 +858,14 @@
         else if (secondPoint[0] > 0 && secondPoint[1] > 0) {
             rotation = (angle * 180/Math.PI);
         }
-        return L.marker(marker, {icon: icon, rotationAngle: rotation})  .addTo(map);
+        return L.marker(marker, {icon: icon, rotationAngle: rotation}).addTo(map);
         // L.marker(marker, {icon: arrowIcon}).addTo(map);
     }
     function remove_vectors(){
-        for(x in vectors){
-            map.removeLayer(vectors[x])
-        }
+        // for(x in vectors){
+        //     map.removeLayer(vectors[x])
+        // }
+        map.removeLayer(vectors)
     }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -897,9 +913,9 @@
         bind_direction()
         setTimeout(draw_station, 100)
         // draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed)
-        // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen)
-        // draw_curved_path([37.376338, 126.657046], [37.585471, 127.307775], 'green', arrowIconRed, 1000)
-        // draw_curved_path([37.585471, 127.307775], [37.376338, 126.657046], 'red', 1000)
+        // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen, 5000)
+        draw_curved_path([37.376338, 126.657046], [37.585471, 127.307775], 'green', end_marker, 1000)
+        draw_curved_path([37.585471, 127.307775], [37.376338, 126.657046], 'red', end_marker, 5000)
     });
     </script>
     <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script> -->
