@@ -310,7 +310,7 @@
     station_marker = {}
     vectors = []
     var start_marker = L.icon({
-        iconUrl: base_url + '/start_red.png',
+        iconUrl: base_url + '/start_red_no_border.png',
         iconSize: [16, 16],
         iconAnchor: [8, 8]
     })
@@ -791,9 +791,7 @@
         }
     }
     function draw_curved_path(start, end, color, icon, density, min, range, option){
-        console.log(start, end, color, icon, density, min, range)
-        var o = (density - min) / range + 0.1
-        o = o > 1 ? 1 : o
+        var o = get_max_opacity((density - min) / range, 0.1)
         var w = Math.log2(density - thres_pair.getValue())
         w = w == 0  ? 1 : w
         if(!option){
@@ -805,7 +803,8 @@
                 // zIndexOffset: 200
             }
         }
-        var res = get_curved_points(start, end, icon)
+        var mo = get_max_opacity(o, 0.1)
+        var res = get_curved_points(start, end, icon, mo)
         var curve = L.curve(res.line, option);
         bind_density(curve, density)
         bind_density(res.start, density)
@@ -813,6 +812,13 @@
         var group = L.layerGroup([res.start, res.end, curve]).addTo(map);
         return group
     }
+
+    function get_max_opacity(opacity, added){
+        var x = opacity + added
+        x = x > 1 ? 1 : x
+        return x
+    }
+
     function bind_density(obj, density){
         obj.bindPopup('<p>'+density+'</p>')
             .on('click', function (e) {
@@ -823,7 +829,7 @@
             //     this.closePopup();
             // });
     }
-    function get_curved_points(start, end, icon){
+    function get_curved_points(start, end, icon, opacity){
         var y = end[0] - start[0]
         var x = end[1] - start[1]
         var dy = y * 110.574
@@ -844,8 +850,9 @@
             marker = end.slice()
         }
         // console.log('middle', ym, xm)
-        var marker = add_arrow([ym, xm], end, marker, icon)
-        var start_m = L.marker(start.slice(), {icon: start_marker, zIndexOffset: 100});
+        var rotation = add_arrow([ym, xm], end, marker, icon)
+        marker = L.marker(marker, {icon: icon, rotationAngle: rotation, zIndexOffset: 200, opacity: opacity});
+        var start_m = L.marker(start.slice(), {icon: start_marker, opacity: opacity, zIndexOffset: 100});
         // var marker = L.marker(marker, {icon: icon, zIndexOffset: 200});
         return {start: start_m, end: marker, line: ['M', start, 'Q',[ym, xm], end]}
     }
@@ -877,7 +884,7 @@
         else if (secondPoint[0] > 0 && secondPoint[1] > 0) {
             rotation = (angle * 180/Math.PI);
         }
-        return L.marker(marker, {icon: icon, rotationAngle: rotation, zIndexOffset: 200}).addTo(map);
+        return rotation
         // L.marker(marker, {icon: arrowIcon}).addTo(map);
     }
     function remove_vectors(){
@@ -931,7 +938,7 @@
         bind_transport_type()
         bind_direction()
         setTimeout(draw_station, 100)
-        // draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed, 1000, 100, 900)
+        draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed, 1000, 100, 10000)
         // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen, 5000)
         // draw_curved_path([37.376338, 126.657046], [37.585471, 127.307775], 'green', end_marker, 1000)
         // draw_curved_path([37.585471, 127.307775], [37.376338, 126.657046], 'red', end_marker, 5000)
