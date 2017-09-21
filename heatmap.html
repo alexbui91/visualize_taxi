@@ -814,12 +814,12 @@
     }
     function bind_density(obj, density){
         obj.bindPopup('<p>'+density+'</p>')
-            .on('mouseover', function (e) {
+            .on('click', function (e) {
                 this.openPopup();
             })
-            .on('mouseout', function (e) {
-                this.closePopup();
-            });
+            // .on('mouseout', function (e) {
+            //     this.closePopup();
+            // });
     }
     function get_curved_points(start, end, icon){
         var y = end[0] - start[0]
