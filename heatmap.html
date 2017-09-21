@@ -310,9 +310,9 @@
     station_marker = {}
     vectors = []
     var start_marker = L.icon({
-        iconUrl: base_url + '/start_round.png',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
+        iconUrl: base_url + '/start_red.png',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
     })
     var end_marker = L.icon({
         iconUrl: base_url + '/end_marker.png',
@@ -329,11 +329,11 @@
     //     iconSize: [20, 20],
     //     iconAnchor: [10, 10]
     // });
-    // var arrowIconRed = L.icon({
-    //     iconUrl: base_url + '/arrow_red.png',
-    //     iconSize: [20, 20],
-    //     iconAnchor: [10, 10]
-    // });
+    var arrowIconRed = L.icon({
+        iconUrl: base_url + '/arrow_red.png',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
     var obj
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
@@ -786,16 +786,15 @@
             start = [obj[0], obj[1]]
             end = [obj[2], obj[3]]
             density = obj[4]
-            var path = draw_curved_path(start, end, 'red', end_marker, density, min, range)
+            var path = draw_curved_path(start, end, 'red', arrowIconRed, density, min, range)
             vectors.push(path)
         }
     }
     function draw_curved_path(start, end, color, icon, density, min, range, option){
+        console.log(start, end, color, icon, density, min, range)
         var o = (density - min) / range + 0.1
         o = o > 1 ? 1 : o
-        console.log(o)
-        density = density - thres_pair.getValue()
-        var w = Math.log2(density)
+        var w = Math.log2(density - thres_pair.getValue())
         w = w == 0  ? 1 : w
         if(!option){
             option = {
@@ -807,10 +806,21 @@
         }
         var res = get_curved_points(start, end, icon)
         var curve = L.curve(res.line, option);
+        bind_density(curve, density)
+        bind_density(res.start, density)
+        bind_density(res.end, density)
         var group = L.layerGroup([res.start, res.end, curve]).addTo(map);
         return group
     }
-
+    function bind_density(obj, density){
+        obj.bindPopup('<p>'+density+'</p>')
+            .on('mouseover', function (e) {
+                this.openPopup();
+            })
+            .on('mouseout', function (e) {
+                this.closePopup();
+            });
+    }
     function get_curved_points(start, end, icon){
         var y = end[0] - start[0]
         var x = end[1] - start[1]
@@ -832,9 +842,9 @@
             marker = end.slice()
         }
         // console.log('middle', ym, xm)
-        // var marker = add_arrow([ym, xm], end, marker, icon)
+        var marker = add_arrow([ym, xm], end, marker, icon)
         var start_m = L.marker(start.slice(), {icon: start_marker, zIndexOffset: 100});
-        var marker = L.marker(marker, {icon: icon, zIndexOffset: 200});
+        // var marker = L.marker(marker, {icon: icon, zIndexOffset: 200});
         return {start: start_m, end: marker, line: ['M', start, 'Q',[ym, xm], end]}
     }
     function add_arrow(start, end, marker, icon){
@@ -865,7 +875,7 @@
         else if (secondPoint[0] > 0 && secondPoint[1] > 0) {
             rotation = (angle * 180/Math.PI);
         }
-        return L.marker(marker, {icon: icon, rotationAngle: rotation}).addTo(map);
+        return L.marker(marker, {icon: icon, rotationAngle: rotation, zIndexOffset: 200}).addTo(map);
         // L.marker(marker, {icon: arrowIcon}).addTo(map);
     }
     function remove_vectors(){
@@ -919,7 +929,7 @@
         bind_transport_type()
         bind_direction()
         setTimeout(draw_station, 100)
-        // draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed)
+        // draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed, 1000, 100, 900)
         // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen, 5000)
         // draw_curved_path([37.376338, 126.657046], [37.585471, 127.307775], 'green', end_marker, 1000)
         // draw_curved_path([37.585471, 127.307775], [37.376338, 126.657046], 'red', end_marker, 5000)
