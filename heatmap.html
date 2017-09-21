@@ -321,8 +321,8 @@
     })
     var marker_round = L.icon({
         iconUrl: base_url + '/station_point.png',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
+        iconSize: [10, 10],
+        iconAnchor: [5, 5]
     })
     // var arrowIconGreen = L.icon({
     //     iconUrl: base_url + '/arrow_big_green.png',
@@ -705,7 +705,7 @@
       var mk = L.marker(obj, {
         icon: marker_round,
         opacity: 0.7,
-        zIndexOffset: 9999
+        zIndexOffset: 10
       })
       mk.bindPopup('<p>'+obj['STATION_NM']+'역</p>')
         .on('mouseover', function (e) {
@@ -801,7 +801,8 @@
                 color: color,
                 // dashArray: 5,
                 opacity: o,
-                weight: w
+                weight: w,
+                // zIndexOffset: 200
             }
         }
         var res = get_curved_points(start, end, icon)
