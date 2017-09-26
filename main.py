@@ -101,6 +101,5 @@ if __name__ == '__main__':
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
-    webapp.get_subwaypoints = Station()
     cherrypy.quickstart(webapp, '/', conf)
 

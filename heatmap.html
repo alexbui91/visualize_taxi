@@ -304,7 +304,7 @@
     zoom_to_marker = 13
     time_offset = 5
     start_zoom = 0
-    is_draw = false
+    // is_draw = false
     station_path = {}
     station_marker = {}
     vectors = []
@@ -333,11 +333,7 @@
         iconSize: [20, 20],
         iconAnchor: [10, 10]
     });
-    var obj
-    // This example creates a 2-pixel-wide red polyline showing the path of William
-    // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
-    // Brisbane, Australia.
-    // list = ['20120101_334805_01.json', '20120101_342003.json', '20120101_342019.json']
+    // var obj
 
     function enableLoading() {
         loading_container.removeClass('hide')
@@ -356,52 +352,20 @@
         return data
     }
 
+    /* init leaflet map */
     function initLeaflet() {
         var map = L.map('map', {
             center: [37.5717, 126.93923],
             zoom: 10
         });
-        // var roadMutant = L.gridLayer.googleMutant({
-        //     maxZoom: 24,
-        //     type: 'roadmap'
-        // }).addTo(map);
-        // L.control.layers({
-        //     Roadmap: roadMutant
-        //     // Styles: styleMutant
-        // }, {}, {
-        //     collapsed: false
-        // }).addTo(map);
         var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
         }).addTo(map);
-        // var positron = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        //     attribution: '&copy; <a href="http://bdi.snu.ac.kr/">BDI</a>'
-        // }).addTo(map);
         return map
     }
 
+    /* init heat layer */
     function initHeat(map, data) {
-        // var cfg = {
-        //   // radius should be small ONLY if scaleRadius is true (or small radius is intended)
-        //   // if scaleRadius is false it will be the constant radius used in pixels
-        //   "radius": 0.05,
-        //   "maxOpacity": .8, 
-        //   // scales the radius based on map zoom
-        //   "scaleRadius": true, 
-        //   // if set to false the heatmap uses the global maximum for colorization
-        //   // if activated: uses the data maximum within the current map boundaries 
-        //   //   (there will always be a red spot with useLocalExtremas true)
-        //   "useLocalExtrema": true,
-        //   // which field name in your data represents the latitude - default "lat"
-        //   latField: 'lat',
-        //   // which field name in your data represents the longitude - default "lng"
-        //   lngField: 'lng',
-        //   // which field name in your data represents the data value - default "value"
-        //   valueField: 'count'
-        // };
-
-        // return new HeatmapOverlay(cfg);
-        // init heat with Leaflet.heat
         if (data) {
             data = data.map(function(p) { return [p.lat, p.lng, p.count] });
         }
@@ -411,13 +375,9 @@
         }).addTo(map);
     }
 
-    function add_data_to_heat(layer, data) {
-        // dynamic add data to heat layer
-        for (x in data) {
-            layer.addLatLng([x.lat, x.lng, x.count]);
-        }
-    }
-
+    /*
+        deprecated
+    */
     function bind_direction() {
         var obj = $('.usage:checked')
         obj.change(function() {
@@ -428,6 +388,9 @@
         })
     }
 
+    /*
+        bind transport types in filter have been changed
+    */
     function bind_transport_type() {
         var obj = $('.transport-type')
         obj.change(function() {
@@ -443,6 +406,9 @@
         })
     }
 
+    /*
+        change threshold of slider respectively to transport type. (see 3 group above)
+    */
     function change_threshold(obj, threshold, step, def) {
         if (obj) {
             obj.setAttribute('max', threshold)
@@ -451,6 +417,10 @@
         }
     }
 
+    /*
+        process slider object
+        add start and end text
+    */
     function process_slider(value) {
         // mid is 24h
         var arr = []
@@ -462,6 +432,9 @@
         return arr
     }
 
+    /*
+        process time label of slider when display
+    */
     function processLabel(value) {
         // get real clock time with offset of five or other 
         var time = getRealTime(value)
@@ -470,6 +443,9 @@
         return res
     }
 
+    /*
+        process time digit as format hh:mm 
+    */
     function process_digit(value, time){
         // add 30 or 00 to clock time
         var h = ''
@@ -498,7 +474,6 @@
         }).get();
     }
 
-
     function init_map_events(m) {
         // init map event for mouse move, zoom, ...
         m.on('zoomstart', function() {
@@ -506,10 +481,11 @@
         })
         m.on('zoomend', function() {
             var cur_zoom = m.getZoom()
-            // console.log(cur_zoom, start_zoom)
-            clearTimeout(waiting_for_map)
+            // this is to detect zoom change and reload data. 
+            // However, at the moment, the data processing step is too slow so we disable this feature
+            // clearTimeout(waiting_for_map)
             // if (is_draw && cur_zoom > start_zoom) {
-            waiting_for_map = setTimeout(update_data, 500)
+            // waiting_for_map = setTimeout(update_data, 500)
             // }
             start_zoom = cur_zoom
             check_display_markers(cur_zoom)
@@ -524,9 +500,10 @@
         // });
     }
 
+
     function update_data() {
         filter = get_filter()
-        // get_data(filter)
+        get_data(filter)
     }
 
     function get_boundary(m) {
@@ -610,7 +587,7 @@
                 valid_loading = true
                 alert('An error occured during processing')
                 disableLoading()
-                is_draw = false
+                // is_draw = false
             });
         }
     }
@@ -716,14 +693,7 @@
       return mk
     }
 
-    function check_display_markers(cur_zoom){
-      if(cur_zoom >= zoom_to_marker){
-          display_markers(true)
-      }else{
-          display_markers(false)
-      }
-    }
-
+    
     function display_markers(flag){
         var checked = getCheckBox($('.station-line:checked'))
         for(x in station_marker){
@@ -734,6 +704,10 @@
             }
         }
     }
+    
+    /*
+        render list of checkbox respectively to subway lines
+    */
     function render_station(){
         str = ''
         for(x in station_info){
@@ -751,6 +725,10 @@
             get_station_change()
         })
     }
+
+    /*
+        render subway line checkbox ui
+    */
     function get_station_input(value, name, color){
       var str = '<div class="subway-line col-xlg-4 col-lg-6 col-md-6 col-sm-6 col-xs-6">'
               + '<label>'
@@ -760,6 +738,11 @@
               + '</div>'
       return str
     }
+
+    /*
+        check event of station lines checkbox
+        if changed, en/disable respective subway line on map
+    */
     function get_station_change(){
       var checked = getCheckBox($('.station-line:checked'))
       for(x in station_path){
@@ -772,6 +755,22 @@
       var cur_zoom = map.getZoom()
       check_display_markers(cur_zoom)
     }
+
+    /*
+        whether current zoom value is valid to display markers of stations. 
+        We only display station markers if it is over "zoom_to_marker" value
+    */
+    function check_display_markers(cur_zoom){
+      if(cur_zoom >= zoom_to_marker){
+          display_markers(true)
+      }else{
+          display_markers(false)
+      }
+    }
+
+    /*
+        draw paths from origins and destinations in O-D
+    */
     function draw_vectors(data){
         var obj, start, end, density
         remove_vectors(vectors)
@@ -789,6 +788,10 @@
             vectors.push(path)
         }
     }
+
+    /*
+        draw path as a curve instead of a straight line
+    */
     function draw_curved_path(start, end, color, icon, density, min, range, option){
         var o = get_max_opacity((density - min) / range, 0.1)
         var w = Math.log2(density - thres_pair.getValue())
@@ -812,12 +815,19 @@
         return group
     }
 
+    /*
+        get value opacity of each path depending on its intensity.
+        use function like machine learning normalization
+    */
     function get_max_opacity(opacity, added){
         var x = opacity + added
         x = x > 1 ? 1 : x
         return x
     }
-
+    
+    /*
+        click on to show density of path
+    */
     function bind_density(obj, density){
         obj.bindPopup('<p>'+density+'</p>')
             .on('click', function (e) {
@@ -828,6 +838,10 @@
             //     this.closePopup();
             // });
     }
+
+    /*
+        specify points as latitude and longitude in curve path
+    */
     function get_curved_points(start, end, icon, opacity){
         var y = end[0] - start[0]
         var x = end[1] - start[1]
@@ -855,6 +869,10 @@
         // var marker = L.marker(marker, {icon: icon, zIndexOffset: 200});
         return {start: start_m, end: marker, line: ['M', start, 'Q',[ym, xm], end]}
     }
+
+    /*
+        add arrow to destination of path
+    */
     function add_arrow(start, end, marker, icon){
         firstPoint = start.slice()
         secondPoint = end.slice()
@@ -886,20 +904,22 @@
         return rotation
         // L.marker(marker, {icon: arrowIcon}).addTo(map);
     }
+
+    /* 
+        remove old vectors to redraw 
+    */
     function remove_vectors(){
         for(x in vectors){
             map.removeLayer(vectors[x])
         }
         // map.removeLayer(vectors)
     }
+
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
-
+    /* ready function of jquery */
     $(document).ready(function() {
-        // https://github.com/seiyria/bootstrap-slider
-        // *https://www.patrick-wied.at/static/heatmapjs/
-        // https://github.com/Leaflet/Leaflet.heat
         render_station()
         thres = new Slider('#threshold', {
             'reversed': false,
@@ -919,9 +939,6 @@
             formatter: function(value) {
                 $('.pair-threshold').html(numberWithCommas(value))
                 return value
-
-
-
             }
         })
         $('#time-range').slider({
@@ -932,13 +949,12 @@
         init_map_events(map)
         heat = initHeat(map, [])
         $('#submit-filter').click(function() {
-            is_draw = true
-            //if(map.getZoom() != start_zoom){
-            get_data(get_filter())
-            //}
+            // is_draw = true
+            update_data()
+            // get_data(get_filter())
         })
         bind_transport_type()
-        bind_direction()
+        // bind_direction()
         setTimeout(draw_station, 100)
         //draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed, 1000, 100, 10000)
         // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen, 5000)
