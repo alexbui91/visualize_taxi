@@ -630,41 +630,41 @@
         return []
     }
 
-    function get_station(){
-        enableLoading()
-        $.post('http://147.47.206.12:31080/get_subwaypoints', {}, function(res) {
-            disableLoading()
-            if (res.data && res.data.length) {
-                station = group_station(res.data)
-                draw_station()
-            } else {
-              station = []
-            }
-        }, 'json').fail(function(e) {
-            alert('An error occured during processing')
-            disableLoading()
-        });
-    }
+    // function get_station(){
+    //     enableLoading()
+    //     $.post('http://147.47.206.12:31080/get_subwaypoints', {}, function(res) {
+    //         disableLoading()
+    //         if (res.data && res.data.length) {
+    //             station = group_station(res.data)
+    //             draw_station()
+    //         } else {
+    //           station = []
+    //         }
+    //     }, 'json').fail(function(e) {
+    //         alert('An error occured during processing')
+    //         disableLoading()
+    //     });
+    // }
 
-    function group_station(data){
-        curr_line = ''
-        curr_line_data = null
-        tmp = {}
-        var obj
-        for(x in data){
-          obj = data[x]
-          if(curr_line != obj[1]){
-              if(curr_line_data){
-                tmp[curr_line] = curr_line_data
-              } 
-              curr_line = obj[1]
-              curr_line_data = []
-          }
-          curr_line_data.push([obj[3], obj[2], obj[0]])
-        }
-        tmp[curr_line] = curr_line_data
-        return tmp
-    }
+    // function group_station(data){
+    //     curr_line = ''
+    //     curr_line_data = null
+    //     tmp = {}
+    //     var obj
+    //     for(x in data){
+    //       obj = data[x]
+    //       if(curr_line != obj[1]){
+    //           if(curr_line_data){
+    //             tmp[curr_line] = curr_line_data
+    //           } 
+    //           curr_line = obj[1]
+    //           curr_line_data = []
+    //       }
+    //       curr_line_data.push([obj[3], obj[2], obj[0]])
+    //     }
+    //     tmp[curr_line] = curr_line_data
+    //     return tmp
+    // }
     function draw_station(){
       var color = ''
       // s = 'K'
