@@ -48,16 +48,6 @@ def load_data(spark):
     road_latlong = road_latlong_raw.withColumn("on_longitude", col("X_MIN")).withColumn("on_latitude", col("Y_MIN")) \
                                    .withColumn("off_longitude", col("X_MAX")).withColumn("off_latitude", col("Y_MAX"))
     
-    # Load taxi data
-    '''df_raw = spark.read \
-        .format("com.databricks.spark.csv") \
-        .option("header", "false") \
-        .option("inferSchema", "true") \
-        .option("encoding", "UTF-8") \
-        .load("/nfs-data/datasets/seoul_taxi/TaxiMach_Link_Dataset_Full_201502.txt")
-    df = df_raw.filter("_c1 == '2'").withColumn("fixed_date", lit("20170626000000"))
-    taxi_data = preprocess_taxi_data(df, road_latlong)'''
-
     # weekday
     data_raw = spark.read \
         .format("com.databricks.spark.csv") \
@@ -67,24 +57,18 @@ def load_data(spark):
         .load("/nfs-data/datasets/smartcard_data/cards/20170626.csv")
 
     data_new = preprocessing(data_raw, bus_latlong, subway_latlong)
-    #data_new = data.union(taxi_data)
-    #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
     data_new_1_ = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00' and count > 10")
     data_new_2_ = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00' and count > 1")
     data_new_1 = data_new_1_.coalesce(100)
     data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
     data_new_2.cache()
-    #print(data_new_1.printSchema())
     print(data_new_1.count())
     print(data_new_2.count())
     cache.append(data_new_1)
     cache.append(data_new_2)
 
     # Weekend
-    '''df = df_raw.filter("_c1 == '1'").withColumn("fixed_date", lit("20170625000000"))
-    taxi_data = preprocess_taxi_data(df, road_latlong)'''
-
     data_raw = spark.read \
         .format("com.databricks.spark.csv") \
         .option("header", "false") \
@@ -93,8 +77,6 @@ def load_data(spark):
         .load("/nfs-data/datasets/smartcard_data/cards/20170625.csv")
 
     data_new = preprocessing(data_raw, bus_latlong, subway_latlong)
-    #data_new = data.union(taxi_data)
-    #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
     data_new_1_ = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00' and count > 10")
     data_new_2_ = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00' and count > 1")
     data_new_1 = data_new_1_.coalesce(100)
@@ -107,17 +89,6 @@ def load_data(spark):
     cache.append(data_new_2)
     print('Load O-D pair data completed!')
 
-
-def preprocess_taxi_data(data_raw, road_latlong):
-    data1 = data_raw.select(col("_c0").alias("tp_link_id"), (col("_c2").cast("integer")*1800 + unix_timestamp(col("fixed_date"), "yyyyMMddHHmmss").cast("long")).cast("timestamp").alias("timerange"), \
-                col("_c5").cast("integer").alias("count_geton"), col("_c6").cast("integer").alias("count_getoff"),  col("_c7").cast("integer").alias("count_emp"))
-    data2 = data1.groupBy("timerange", "tp_link_id").agg(sum("count_geton").alias("count"))
-    #data3 = data1.groupBy("timerange", "tp_link_id").agg(sum("count_getoff").alias("sum_getoff"))
-    #data4 = data2.join(data3, ["tp_link_id", "timerange"])
-    data5 = data2.join(road_latlong, col("tp_link_id") == col("T_LINK_ID")).select("timerange", "count", "on_latitude", "on_longitude", "off_latitude", "off_longitude") \
-                 .na.fill(0, ["count"])
-    data6 = data5.withColumn("station_type", lit("0").cast("integer"))
-    return data6
 
 def udf_station_type(t):
     if t == 131:
@@ -165,26 +136,7 @@ def distance(lat1, lon1, lat2, lon2):
     a = 0.5 - cos((lat2 - lat1) * p)/2 + cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2
     return 12742 * asin(sqrt(a)) #2*R*asin...
 
-# Aggregate by grid
-def aggregate_grid(data, boundary, grid_scale=1):
-    x2 = boundary[0]
-    x1 = boundary[1]
-    y1 = boundary[2]
-    y2 = boundary[3]
-    distance_lat = int(distance(y1,x1,y2,x1) / grid_scale)
-    distance_lng = int(distance(y1,x1,y1,x2) / grid_scale)
-    print(distance_lat)
-    print(distance_lng)
-    lat_step = (y2-y1)/distance_lat
-    lng_step = (x1-x2)/distance_lng
-
-    data1 = data.withColumn("agg_latitude", (((col("latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
-                         .withColumn("agg_longitude", (((col("longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
-    data2 = data1.groupBy("station_type", col("agg_latitude").alias("latitude"), col("agg_longitude").alias("longitude"), "timerange") \
-                 .agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff")) \
-                 .select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude", "station_type")
-    return data2
-
+# Service function
 def get_points(time0, time1, date, station_type, direction, boundary, threshold=0, grid_scale=1):
     # weekday
     if date == 0 or date == 1:
@@ -242,26 +194,11 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
                               col("agg_off_latitude").alias("lat_end"), col("agg_off_longitude").alias("lng_end"), \
                               col("count").alias("count")).where("count >= " + str(threshold)) \
                  .collect()
-    '''elif direction == 1:
-        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_getoff").alias("count")).where("count >= " + str(threshold)) \
-                 .collect()
-    else:
-        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")).where("count >= " + str(threshold)) \
-                 .collect()'''
     print(len(result))
     print(result[0:10])
     return result
 
-def get_subwaypoints():
-    subway_latlong = spark.read \
-            .format("com.databricks.spark.csv") \
-            .option("header", "true") \
-            .option("inferSchema", "true") \
-            .option("encoding", "UTF-8") \
-            .load("./raw/subway_station.csv")
-    result = subway_latlong.orderBy("line", "station").select("station", "line", col("longitude").alias("lng"), col("latitude").alias("lat")).collect()
-    return result
-
+# Main function, used for testing only
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file")

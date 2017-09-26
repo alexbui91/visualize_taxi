@@ -7,11 +7,12 @@ import properties as p
 import time
 
 
-spark = None
+#spark = None
 cache = []
 
 def init_spark():
-    global spark
+    #global spark
+    spark = None
     if spark is None:
         conf = (SparkConf().setAppName("smartcard"))
         conf.set("spark.driver.memory", "128g")
@@ -19,11 +20,9 @@ def init_spark():
         conf.set("spark.ui.port", "31040")
         conf.set("spark.sql.shuffle.partitions", "200")
         spark = SparkSession.builder.config(conf=conf).getOrCreate()
-    #spark.conf.set("spark.executor.memory", "64g")
-    #spark.conf.set("spark.ui.port", "31040")
+    return spark
 
-
-def load_data():
+def load_data(spark):
     # lat/lon data
     bus_latlong = spark.read \
             .format("com.databricks.spark.csv") \
@@ -68,14 +67,13 @@ def load_data():
 
     data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data_new = data.union(taxi_data)
-    #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
-    data_new_1_ = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00'")
+    data_new_1_ = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00' and sum_geton >= 10")
     data_new_2_ = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00'")
     data_new_1 = data_new_1_.coalesce(100)
     data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
     data_new_2.cache()
-    #print(data_new_1.printSchema())
+    # count row numbers
     print(data_new_1.count())
     print(data_new_2.count())
     cache.append(data_new_1)
@@ -94,8 +92,7 @@ def load_data():
 
     data = preprocessing(data_raw, bus_latlong, subway_latlong)
     data_new = data.union(taxi_data)
-    #data_new2 = aggregate_grid(data_new, [123.0, 131.0, 36.0, 39.0])
-    data_new_1_ = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00'")
+    data_new_1_ = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00' and sum_geton >= 10")
     data_new_2_ = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00'")
     data_new_1 = data_new_1_.coalesce(100)
     data_new_2 = data_new_2_.coalesce(100)
@@ -105,6 +102,7 @@ def load_data():
     print(data_new_2.count())
     cache.append(data_new_1)
     cache.append(data_new_2)
+    print('Load heatmap data completed !')
 
 
 def preprocess_taxi_data(data_raw, road_latlong):
@@ -142,7 +140,7 @@ def preprocessing(data, bus_latlong, subway_latlong):
 
     data6 = data5.filter("station_type == 1 or station_type == 2").join(bus_latlong, col("station_id_int") == col("station")) \
                  .select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude", "station_type")
-    data7 = data5.filter("station_type == 3").join(subway_latlong, col("station_id_int") == col("station")) \
+    data7 = data5.filter("station_type == 3 and sum_geton >= 100").join(subway_latlong, col("station_id_int") == col("station")) \
                  .select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude", "station_type")
     data8 = data6.union(data7).dropDuplicates()
     return data8
@@ -153,26 +151,7 @@ def distance(lat1, lon1, lat2, lon2):
     a = 0.5 - cos((lat2 - lat1) * p)/2 + cos(lat1 * p) * cos(lat2 * p) * (1 - cos((lon2 - lon1) * p)) / 2
     return 12742 * asin(sqrt(a)) #2*R*asin...
 
-# Aggregate by grid
-def aggregate_grid(data, boundary, grid_scale=1):
-    x2 = boundary[0]
-    x1 = boundary[1]
-    y1 = boundary[2]
-    y2 = boundary[3]
-    distance_lat = int(distance(y1,x1,y2,x1) / grid_scale)
-    distance_lng = int(distance(y1,x1,y1,x2) / grid_scale)
-    print(distance_lat)
-    print(distance_lng)
-    lat_step = (y2-y1)/distance_lat
-    lng_step = (x1-x2)/distance_lng
-
-    data1 = data.withColumn("agg_latitude", (((col("latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
-                         .withColumn("agg_longitude", (((col("longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
-    data2 = data1.groupBy("station_type", col("agg_latitude").alias("latitude"), col("agg_longitude").alias("longitude"), "timerange") \
-                 .agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff")) \
-                 .select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude", "station_type")
-    return data2
-
+# Service function
 def get_points(time0, time1, date, station_type, direction, boundary, threshold=0, grid_scale=1):
     # weekday
     if date == 0 or date == 1:
@@ -213,6 +192,7 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
     filter_str1 += filter_str
     filter_str2 += filter_str
     print(filter_str1)
+    print('Threshold heatmap: %d' % threshold)
     
     # Filter data and aggregate by grid
     data_filtered1 = data1_.filter(filter_str1)
@@ -235,16 +215,7 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
     print(result[0:10])
     return result
 
-def get_subwaypoints():
-    subway_latlong = spark.read \
-            .format("com.databricks.spark.csv") \
-            .option("header", "true") \
-            .option("inferSchema", "true") \
-            .option("encoding", "UTF-8") \
-            .load("./raw/subway_station.csv")
-    result = subway_latlong.orderBy("line", "station").select("station", "line", col("longitude").alias("lng"), col("latitude").alias("lat")).collect()
-    return result
-
+# Main function - used for testing only
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file")
