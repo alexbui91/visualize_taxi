@@ -38,16 +38,6 @@ def load_data(spark):
             .option("encoding", "UTF-8") \
             .load("./raw/subway_station.csv")
 
-    road_latlong_raw = spark.read \
-            .format("com.databricks.spark.csv") \
-            .option("header", "true") \
-            .option("inferSchema", "true") \
-            .option("encoding", "UTF-8") \
-            .load("./raw/taxi_road_location.txt").dropDuplicates()
-  
-    road_latlong = road_latlong_raw.withColumn("on_longitude", col("X_MIN")).withColumn("on_latitude", col("Y_MIN")) \
-                                   .withColumn("off_longitude", col("X_MAX")).withColumn("off_latitude", col("Y_MAX"))
-    
     # weekday
     data_raw = spark.read \
         .format("com.databricks.spark.csv") \
