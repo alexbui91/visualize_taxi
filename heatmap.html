@@ -20,8 +20,12 @@
     <script src="./static/js/bootstrap-slider.min.js"></script>
     <!-- <script src="./static/js/heatmap.min.js"></script> -->
     <script src="./static/js/leaflet-heat.js"></script>
+    <script src="./static/js/leaflet.curve.js"></script>
+    <script src="./static/js/leaflet.rotatedMarker.js"></script>
+    <!-- <script src="./static/js/marker.rotation.js"></script> -->
+
     <script src="./static/js/underscore-min.js"></script>
-    <script src="./static/js/Leaflet.GoogleMutant.js"></script>
+    <!-- <script src="./static/js/Leaflet.GoogleMutant.js"></script> -->
     <script src="./static/js/station.js"></script>
     <script src="./static/js/station_color.js"></script>
     <!-- <script src="./static/js/leaflet-heatmap.js"></script> -->
@@ -175,11 +179,20 @@
                     <h3>Filter Options</h3>
                     <form class="form-horizontal">
                         <div class="form-group">
-                            <label for="day-filter" class="col-sm-4 control-label">Threshold</label>
+                            <label for="day-filter" class="col-sm-4 control-label">Heat Threshold</label>
                             <div class="col-sm-8 threshold">
                                 <input id="threshold" type="text" value="" data-slider-min="0" />
                                 <div class='time-range-label'>
-                                    <span class='threshold-value'>0</span>
+                                    <span class='threshold-value heat-threshold'>0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="day-filter" class="col-sm-4 control-label">Pair Threshold</label>
+                            <div class="col-sm-8 threshold">
+                                <input id="pair-threshold" type="text" value="" data-slider-min="0" />
+                                <div class='time-range-label'>
+                                    <span class='threshold-value pair-threshold'>0</span>
                                 </div>
                             </div>
                         </div>
@@ -227,7 +240,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <!-- <div class="form-group">
                             <label for="day-filter" class="col-sm-4 control-label">Direction</label>
                             <div class="col-sm-8">
                                 <div class="checkbox">
@@ -241,7 +254,7 @@
                                     </label>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
                         
                         <div class='row submit'>
                             <div class='col-lg-12'>
@@ -281,8 +294,13 @@
       group2: {
         max: 2000,
         step: 100,
-        default: 1000
-      }
+        default: 200
+      },
+      group3: {
+        max: 5000,
+        step: 100,
+        default: 2000
+      },
     }
     zoom_to_marker = 13
     time_offset = 5
@@ -290,11 +308,32 @@
     is_draw = false
     station_path = {}
     station_marker = {}
+    vectors = []
+    var start_marker = L.icon({
+        iconUrl: base_url + '/start_red_no_border.png',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    })
+    var end_marker = L.icon({
+        iconUrl: base_url + '/end_marker.png',
+        iconSize: [30, 30],
+        iconAnchor: [15, 20]
+    })
     var marker_round = L.icon({
-        iconUrl: base_url + '/round_marker.png',
+        iconUrl: base_url + '/station_point.png',
+        iconSize: [10, 10],
+        iconAnchor: [5, 5]
+    })
+    // var arrowIconGreen = L.icon({
+    //     iconUrl: base_url + '/arrow_big_green.png',
+    //     iconSize: [20, 20],
+    //     iconAnchor: [10, 10]
+    // });
+    var arrowIconRed = L.icon({
+        iconUrl: base_url + '/arrow_red.png',
         iconSize: [20, 20],
         iconAnchor: [10, 10]
-    })
+    });
     var obj
     // This example creates a 2-pixel-wide red polyline showing the path of William
     // Kingsford Smith's first trans-Pacific flight between Oakland, CA, and
@@ -396,20 +435,21 @@
             checked = getCheckBox($('.transport-type:checked'))
             // check if has subway in filter
             if (checked.indexOf('0') != -1 || checked.indexOf('3') != -1) {
-                change_threshold(threshold.group1.max, threshold.group1.step, threshold.group1.default)
+                change_threshold(thres, threshold.group1.max, threshold.group1.step, threshold.group1.default)
+                change_threshold(thres_pair, threshold.group3.max, threshold.group3.step, threshold.group3.default)
             } else {
-                change_threshold(threshold.group2.max, threshold.group2.step, threshold.group2.default)
+                change_threshold(thres, threshold.group2.max, threshold.group2.step, threshold.group2.default)
+                change_threshold(thres_pair, threshold.group2.max, threshold.group2.step, threshold.group2.default)
             }
         })
     }
 
-    function change_threshold(threshold, step, def) {
-        if (thres) {
-            thres.setAttribute('max', threshold)
-            thres.setAttribute('step', step)
-            thres.setValue(def)
+    function change_threshold(obj, threshold, step, def) {
+        if (obj) {
+            obj.setAttribute('max', threshold)
+            obj.setAttribute('step', step)
+            obj.setValue(def)
         }
-
     }
 
     function process_slider(value) {
@@ -487,7 +527,7 @@
 
     function update_data() {
         filter = get_filter()
-        get_data(filter)
+        // get_data(filter)
     }
 
     function get_boundary(m) {
@@ -502,6 +542,7 @@
     function get_filter() {
         t = $('#time-range').slider('getValue')
         thh = thres.getValue()
+        pthh = thres_pair.getValue()
         trans = getCheckBox($('.transport-type:checked'))
         us = getCheckBox($('.usage:checked'))
         us = us.length == 2 ? 2 : us[0]
@@ -538,7 +579,8 @@
             station_type: JSON.stringify(trans),
             usage: us,
             boundary: JSON.stringify([bd.bl.lng, bd.tr.lng, bd.bl.lat, bd.tr.lat]),
-            threshold: thh
+            threshold: thh,
+            pair_threshold: pthh
         }
     }
     // send ajax post request to get new data
@@ -546,18 +588,24 @@
         if (valid_loading) {
             valid_loading = false
             enableLoading()
-            $.post('http://147.47.206.14:31080/get_heat_data', filter, function(res) {
+            $.post('http://147.47.206.12:31080/get_heat_data', filter, function(res) {
                 valid_loading = true
                 disableLoading()
-                if (res.data && res.data.length) {
-                    latlngs = res.data
+                // console.log(res)
+                if (res.data1 && res.data1.length) {
+                    latlngs = res.data1
                     // console.log(res.data.length)
-                    // map.fitBounds(L.latLngBounds(latlngs));
-                    max = _.max(res.data, function(value) { return value[2] })[2];
+                    map.fitBounds(L.latLngBounds(latlngs));
+                    max = _.max(res.data1, function(value) { return value[2] })[2];
                     heat.setOptions('max', max)
                     heat.setLatLngs(latlngs)
                 } else {
                     heat.setLatLngs([])
+                }
+                if (res.data2 && res.data2.length) {
+                    draw_vectors(res.data2)
+                } else {
+                    draw_vectors([])
                 }
             }, 'json').fail(function(e) {
                 valid_loading = true
@@ -585,7 +633,7 @@
 
     function get_station(){
         enableLoading()
-        $.post('http://147.47.206.14:31080/get_subwaypoints', {}, function(res) {
+        $.post('http://147.47.206.12:31080/get_subwaypoints', {}, function(res) {
             disableLoading()
             if (res.data && res.data.length) {
                 station = group_station(res.data)
@@ -656,7 +704,8 @@
     function render_marker_point(obj){
       var mk = L.marker(obj, {
         icon: marker_round,
-        opacity: 0.3
+        opacity: 0.7,
+        zIndexOffset: 10
       })
       mk.bindPopup('<p>'+obj['STATION_NM']+'역</p>')
         .on('mouseover', function (e) {
@@ -724,6 +773,126 @@
       var cur_zoom = map.getZoom()
       check_display_markers(cur_zoom)
     }
+    function draw_vectors(data){
+        var obj, start, end, density
+        remove_vectors(vectors)
+        vectors = []
+        var min = _.min(data, function(value) { return value[4] })[4];
+        var max = _.max(data, function(value) { return value[4] })[4];
+        var range = max - min
+        for(x in data){
+            // console.log(data[x])
+            obj = data[x]
+            start = [obj[0], obj[1]]
+            end = [obj[2], obj[3]]
+            density = obj[4]
+            var path = draw_curved_path(start, end, 'red', arrowIconRed, density, min, range)
+            vectors.push(path)
+        }
+    }
+    function draw_curved_path(start, end, color, icon, density, min, range, option){
+        var o = get_max_opacity((density - min) / range, 0.1)
+        var w = Math.log2(density - thres_pair.getValue())
+        w = w == 0  ? 1 : w
+        if(!option){
+            option = {
+                color: color,
+                // dashArray: 5,
+                opacity: o,
+                weight: w,
+                // zIndexOffset: 200
+            }
+        }
+        var mo = get_max_opacity(o, 0.1)
+        var res = get_curved_points(start, end, icon, mo)
+        var curve = L.curve(res.line, option);
+        bind_density(curve, density)
+        bind_density(res.start, density)
+        bind_density(res.end, density)
+        var group = L.layerGroup([res.start, res.end, curve]).addTo(map);
+        return group
+    }
+
+    function get_max_opacity(opacity, added){
+        var x = opacity + added
+        x = x > 1 ? 1 : x
+        return x
+    }
+
+    function bind_density(obj, density){
+        obj.bindPopup('<p>'+density+'</p>')
+            .on('click', function (e) {
+                var latlng = [e.latlng.lat, e.latlng.lng]
+                this.openPopup(latlng);
+            })
+            // .on('mouseout', function (e) {
+            //     this.closePopup();
+            // });
+    }
+    function get_curved_points(start, end, icon, opacity){
+        var y = end[0] - start[0]
+        var x = end[1] - start[1]
+        var dy = y * 110.574
+        var dx = x * 111.32 * Math.cos(y) 
+        // console.log(dy, dx)
+        var ym = (start[0] + end[0]) / 2 
+        var xm = (start[1] + end[1]) / 2 
+        var offset = 0.002
+        if (Math.abs(dx) > Math.abs(dy)){
+            // stretch horizon
+            ym += dy / 200
+            end[0] += dy > 0 ? offset : -offset
+            marker = end.slice()
+        }else{
+            // stretch vertical
+            xm += dx / 200
+            end[1] += dx > 0 ? offset : -offset
+            marker = end.slice()
+        }
+        // console.log('middle', ym, xm)
+        var rotation = add_arrow([ym, xm], end, marker, icon)
+        marker = L.marker(marker, {icon: icon, rotationAngle: rotation, zIndexOffset: 200, opacity: opacity});
+        var start_m = L.marker(start.slice(), {icon: start_marker, opacity: opacity, zIndexOffset: 100});
+        // var marker = L.marker(marker, {icon: icon, zIndexOffset: 200});
+        return {start: start_m, end: marker, line: ['M', start, 'Q',[ym, xm], end]}
+    }
+    function add_arrow(start, end, marker, icon){
+        firstPoint = start.slice()
+        secondPoint = end.slice()
+        //Code for putting arrow with appropriate rotation
+        var slope = ((secondPoint[1] - firstPoint[1]) / (secondPoint[0] - firstPoint[0])),
+            angle = Math.atan(slope),
+            rotation;
+        
+        //Shifting the graph Origin to point of start point
+        secondPoint[0] = secondPoint[0] - firstPoint[0];
+        secondPoint[1] = secondPoint[1] - firstPoint[1];
+        
+        //Fourth quadrant
+        if (secondPoint[0] > 0 && secondPoint[1] < 0) {
+            rotation = (angle * 180/Math.PI)/2;
+        }
+        //Second quadrant
+        else if (secondPoint[0] < 0 && secondPoint[1] > 0) {
+            rotation = 180 + (angle * 180/Math.PI);
+        }
+        //Third quadrant
+        else if (secondPoint[0] < 0 && secondPoint[1] < 0) {
+            rotation =  180 + (angle * 180/Math.PI);
+        }
+        //First quadrant
+        else if (secondPoint[0] > 0 && secondPoint[1] > 0) {
+            rotation = (angle * 180/Math.PI);
+        }
+        return rotation
+        // L.marker(marker, {icon: arrowIcon}).addTo(map);
+    }
+    function remove_vectors(){
+        for(x in vectors){
+            map.removeLayer(vectors[x])
+        }
+        // map.removeLayer(vectors)
+    }
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
@@ -739,7 +908,17 @@
             'step': threshold.group1.step,
             'value': threshold.group1.default,
             formatter: function(value) {
-                $('.threshold-value').html(numberWithCommas(value))
+                $('.heat-threshold').html(numberWithCommas(value))
+                return value
+            }
+        })
+        thres_pair = new Slider('#pair-threshold', {
+            'reversed': false,
+            'max': threshold.group3.max,
+            'step': threshold.group3.step,
+            'value': threshold.group3.default,
+            formatter: function(value) {
+                $('.pair-threshold').html(numberWithCommas(value))
                 return value
             }
         })
@@ -759,6 +938,10 @@
         bind_transport_type()
         bind_direction()
         setTimeout(draw_station, 100)
+        //draw_curved_path([37.583117, 126.973841], [37.572244, 126.975022], 'red', arrowIconRed, 1000, 100, 10000)
+        // draw_curved_path([37.572244, 126.975022], [37.583117, 126.973841], 'green', arrowIconGreen, 5000)
+        // draw_curved_path([37.376338, 126.657046], [37.585471, 127.307775], 'green', end_marker, 1000)
+        // draw_curved_path([37.585471, 127.307775], [37.376338, 126.657046], 'red', end_marker, 5000)
     });
     </script>
     <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8jC0HatI1icSg1DcV-xgj2HO6UUlAHbc" async defer></script> -->
