@@ -14,7 +14,7 @@
     <meta property="og:image" content="./static/css/images/bdi.png" />
     <!-- <script src="http://cdn.leafletjs.com/leaflet/v1.0.0-beta.2/leaflet.js"></script> -->
     <script src="./static/js/leaflet.js"></script>
-    <script src="./static/js/L.Polyline.SnakeAnim.js"></script>
+    <!-- <script src="./static/js/L.Polyline.SnakeAnim.js"></script> -->
     <script src="./static/js/jquery-1.10.2.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     <script src="./static/js/bootstrap-slider.min.js"></script>
@@ -22,7 +22,6 @@
     <script src="./static/js/leaflet-heat.js"></script>
     <script src="./static/js/leaflet.curve.js"></script>
     <script src="./static/js/leaflet.rotatedMarker.js"></script>
-    <!-- <script src="./static/js/marker.rotation.js"></script> -->
 
     <script src="./static/js/underscore-min.js"></script>
     <!-- <script src="./static/js/Leaflet.GoogleMutant.js"></script> -->
@@ -920,6 +919,9 @@
             formatter: function(value) {
                 $('.pair-threshold').html(numberWithCommas(value))
                 return value
+
+
+
             }
         })
         $('#time-range').slider({
