@@ -41,15 +41,16 @@ class HeatMap(object):
 
     @cherrypy.tools.accept(media='text/plain')
     @cherrypy.expose
-    def POST(self, time="[]", date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0):
+    def POST(self, time="[]", date=0, station_type="[0,1,2,3]", usage=2, boundary="[]", threshold=0, pair_threshold=0):
         tm = json.loads(time)
         st = json.loads(station_type)
         bd = json.loads(boundary)
 	#start = time.time()    
-	data = s.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
+	data1 = s1.get_points(tm[0], tm[1], int(date), st, usage, bd, int(threshold))
+        data2 = s2.get_points(tm[0], tm[1], int(date), st, usage, bd, int(pair_threshold))
         #end = time.time()
 	#print("query time: %.2f\n" % (end-start))
-	return json.dumps({'data': data})
+	return json.dumps({'data1': data1, 'data2': data2})
 
 @cherrypy.expose
 class Station(object):
@@ -84,8 +85,9 @@ if __name__ == '__main__':
         execfile(activate_this, dict(__file__=activate_this))
 
     import get_data as g
-    #import get_smartcard as s
-    import get_smartcard_0823 as s
+    import get_smartcard as s1
+    import get_smartcard_v2 as s2
+    #import get_smartcard_0823 as s
     cherrypy.config.update({
         'server.socket_host': h.host,
         'server.socket_port': h.port,
@@ -121,8 +123,9 @@ if __name__ == '__main__':
         }
     }
     # g.init_spark()
-    s.init_spark()
-    s.load_data()
+    spark = s1.init_spark()
+    s1.load_data(spark)
+    s2.load_data(spark)
     webapp = WebApp()
     webapp.get_path = Router()
     webapp.get_heat_data = HeatMap()
