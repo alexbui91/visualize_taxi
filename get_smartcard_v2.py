@@ -45,18 +45,9 @@ def load_data(spark):
             .option("encoding", "UTF-8") \
             .load("./raw/taxi_road_location.txt").dropDuplicates()
   
-    road_latlong = road_latlong_raw.withColumn("longitude", (col("X_MAX") + col("X_MIN"))/2).withColumn("latitude", (col("Y_MAX") + col("Y_MIN"))/2)
+    road_latlong = road_latlong_raw.withColumn("on_longitude", col("X_MIN")).withColumn("on_latitude", col("Y_MIN")) \
+                                   .withColumn("off_longitude", col("X_MAX")).withColumn("off_latitude", col("Y_MAX"))
     
-    # Load taxi data
-    df_raw = spark.read \
-        .format("com.databricks.spark.csv") \
-        .option("header", "false") \
-        .option("inferSchema", "true") \
-        .option("encoding", "UTF-8") \
-        .load("/nfs-data/datasets/seoul_taxi/TaxiMach_Link_Dataset_Full_201502.txt")
-    df = df_raw.filter("_c1 == '2'").withColumn("fixed_date", lit("20170626000000"))
-    taxi_data = preprocess_taxi_data(df, road_latlong)
-
     # weekday
     data_raw = spark.read \
         .format("com.databricks.spark.csv") \
@@ -65,24 +56,19 @@ def load_data(spark):
         .option("encoding", "UTF-8") \
         .load("/nfs-data/datasets/smartcard_data/cards/20170626.csv")
 
-    data = preprocessing(data_raw, bus_latlong, subway_latlong)
-    data_new = data.union(taxi_data)
-    data_new_1_ = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00' and sum_geton >= 10")
-    data_new_2_ = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00'")
+    data_new = preprocessing(data_raw, bus_latlong, subway_latlong)
+    data_new_1_ = data_new.filter("timerange >= '2017-06-26 05:00:00' and timerange < '2017-06-26 24:00:00' and count > 10")
+    data_new_2_ = data_new.filter("timerange >= '2017-06-26 00:00:00' and timerange < '2017-06-26 05:00:00' and count > 1")
     data_new_1 = data_new_1_.coalesce(100)
     data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
     data_new_2.cache()
-    # count row numbers
     print(data_new_1.count())
     print(data_new_2.count())
     cache.append(data_new_1)
     cache.append(data_new_2)
 
     # Weekend
-    df = df_raw.filter("_c1 == '1'").withColumn("fixed_date", lit("20170625000000"))
-    taxi_data = preprocess_taxi_data(df, road_latlong)
-
     data_raw = spark.read \
         .format("com.databricks.spark.csv") \
         .option("header", "false") \
@@ -90,10 +76,9 @@ def load_data(spark):
         .option("encoding", "UTF-8") \
         .load("/nfs-data/datasets/smartcard_data/cards/20170625.csv")
 
-    data = preprocessing(data_raw, bus_latlong, subway_latlong)
-    data_new = data.union(taxi_data)
-    data_new_1_ = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00' and sum_geton >= 10")
-    data_new_2_ = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00'")
+    data_new = preprocessing(data_raw, bus_latlong, subway_latlong)
+    data_new_1_ = data_new.filter("timerange >= '2017-06-25 05:00:00' and timerange < '2017-06-25 24:00:00' and count > 10")
+    data_new_2_ = data_new.filter("timerange >= '2017-06-25 00:00:00' and timerange < '2017-06-25 05:00:00' and count > 1")
     data_new_1 = data_new_1_.coalesce(100)
     data_new_2 = data_new_2_.coalesce(100)
     data_new_1.cache()
@@ -102,19 +87,8 @@ def load_data(spark):
     print(data_new_2.count())
     cache.append(data_new_1)
     cache.append(data_new_2)
-    print('Load heatmap data completed !')
+    print('Load O-D pair data completed!')
 
-
-def preprocess_taxi_data(data_raw, road_latlong):
-    data1 = data_raw.select(col("_c0").alias("tp_link_id"), (col("_c2").cast("integer")*1800 + unix_timestamp(col("fixed_date"), "yyyyMMddHHmmss").cast("long")).cast("timestamp").alias("timerange"), \
-                col("_c5").cast("integer").alias("count_geton"), col("_c6").cast("integer").alias("count_getoff"))
-    data2 = data1.groupBy("timerange", "tp_link_id").agg(sum("count_geton").alias("sum_geton"))
-    data3 = data1.groupBy("timerange", "tp_link_id").agg(sum("count_getoff").alias("sum_getoff"))
-    data4 = data2.join(data3, ["tp_link_id", "timerange"])
-    data5 = data4.join(road_latlong, col("tp_link_id") == col("T_LINK_ID")).select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude") \
-                 .na.fill(0, ["sum_geton"]).na.fill(0, ["sum_getoff"])
-    data6 = data5.withColumn("station_type", lit("0").cast("integer"))
-    return data6
 
 def udf_station_type(t):
     if t == 131:
@@ -125,25 +99,36 @@ def udf_station_type(t):
       return 3
 
 def preprocessing(data, bus_latlong, subway_latlong):
-    data1 = data.select(unix_timestamp(col("_c1"), "yyyyMMddHHmmss").cast("timestamp").alias("from_time"), col("_c2").alias("on_station_id"), \
-                        unix_timestamp(col("_c3"), "yyyyMMddHHmmss").cast("timestamp").alias("to_time"), col("_c4").alias("off_station_id"), col("_c5").cast("integer").alias("transportation_code"), \
+    data1 = data.select(unix_timestamp(col("_c1"), "yyyyMMddHHmmss").cast("timestamp").alias("from_time"), col("_c2").alias("geton_station_id"), \
+                        unix_timestamp(col("_c3"), "yyyyMMddHHmmss").cast("timestamp").alias("to_time"), col("_c4").alias("getoff_station_id"), col("_c5").cast("integer").alias("transportation_code"), \
                         col("_c6").cast("integer").alias("headcount"), col("_c7").cast("integer").alias("distance"))
     set_station_type = udf(udf_station_type)
-    data2 = data1.withColumn("on_timerange", ((unix_timestamp("from_time") / 1800).cast("long") * 1800).cast("timestamp")) \
-                 .withColumn("off_timerange", ((unix_timestamp("to_time") / 1800).cast("long") * 1800).cast("timestamp")) \
+    data2 = data1.withColumn("geton_timerange", ((unix_timestamp("from_time") / 1800).cast("long") * 1800).cast("timestamp")) \
+                 .withColumn("getoff_timerange", ((unix_timestamp("to_time") / 1800).cast("long") * 1800).cast("timestamp")) \
                  .withColumn("station_type", set_station_type("transportation_code"))
-    data3 = data2.groupBy("on_station_id", "on_timerange", "station_type").agg(sum("headcount").alias("sum_geton")) \
-                 .withColumnRenamed("on_station_id", "station_id").withColumnRenamed("on_timerange", "timerange")
-    data4 = data2.groupBy("off_station_id", "off_timerange").agg(sum("headcount").alias("sum_getoff")) \
-                 .withColumnRenamed("off_station_id", "station_id").withColumnRenamed("off_timerange", "timerange")
-    data5 = data3.join(data4, ["station_id", "timerange"]).withColumn("station_id_int", col("station_id").cast("integer"))
+    data3 = data2.groupBy("geton_station_id", "getoff_station_id", "geton_timerange", "station_type").agg(sum("headcount").alias("count")) \
+                 .withColumnRenamed("geton_timerange", "timerange")
+    data5 = data3.withColumn("geton_station_id_int", col("geton_station_id").cast("integer")).withColumn("getoff_station_id_int", col("getoff_station_id").cast("integer"))
 
-    data6 = data5.filter("station_type == 1 or station_type == 2").join(bus_latlong, col("station_id_int") == col("station")) \
-                 .select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude", "station_type")
-    data7 = data5.filter("station_type == 3 and sum_geton >= 100").join(subway_latlong, col("station_id_int") == col("station")) \
-                 .select("timerange", "sum_geton", "sum_getoff", "latitude", "longitude", "station_type")
-    data8 = data6.union(data7).dropDuplicates()
-    return data8
+    data6 = data5.filter("station_type == 1 or station_type == 2").join(bus_latlong, col("geton_station_id_int") == col("station")) \
+                 .select(col("geton_station_id"), col("getoff_station_id"), col("timerange"), col("station_type"), col("count"), \
+                         col("latitude").alias("on_latitude"), col("longitude").alias("on_longitude"))
+    data7 = data5.filter("station_type == 1 or station_type == 2").join(bus_latlong, col("getoff_station_id_int") == col("station")) \
+                 .select(col("geton_station_id"), col("getoff_station_id"), col("timerange"), col("station_type"), col("count"), \
+                         col("latitude").alias("off_latitude"), col("longitude").alias("off_longitude"))
+    data8 = data6.join(data7, ["geton_station_id", "getoff_station_id", "timerange", "station_type", "count"]) \
+                 .select("timerange", "count", "on_latitude", "on_longitude", "off_latitude", "off_longitude", "station_type")
+
+    data6_ = data5.filter("station_type == 3").join(subway_latlong, col("geton_station_id_int") == col("station")) \
+                 .select(col("geton_station_id"), col("getoff_station_id"), col("timerange"), col("station_type"), col("count"), \
+                         col("latitude").alias("on_latitude"), col("longitude").alias("on_longitude"))
+    data7_ = data5.filter("station_type == 3").join(subway_latlong, col("getoff_station_id_int") == col("station")) \
+                 .select(col("geton_station_id"), col("getoff_station_id"), col("timerange"), col("station_type"), col("count"), \
+                         col("latitude").alias("off_latitude"), col("longitude").alias("off_longitude"))
+    data8_ = data6_.join(data7_, ["geton_station_id", "getoff_station_id", "timerange", "station_type", "count"]) \
+                 .select("timerange", "count", "on_latitude", "on_longitude", "off_latitude", "off_longitude", "station_type")
+    data9 = data8.union(data8_).dropDuplicates()
+    return data9
 
 from math import cos, asin, sqrt
 def distance(lat1, lon1, lat2, lon2):
@@ -188,34 +173,32 @@ def get_points(time0, time1, date, station_type, direction, boundary, threshold=
     else:
        filter_str2 += "(1 == 2)"
     filter_str += " and station_type in (" + station_type_str + ")"
-    filter_str += " and latitude > " + str(y1) + " and latitude < " + str(y2) + " and longitude > " + str(x2) + " and longitude < " + str(x1)
+    filter_str += " and on_latitude > " + str(y1) + " and on_latitude < " + str(y2) + " and on_longitude > " + str(x2) + " and on_longitude < " + str(x1)
     filter_str1 += filter_str
     filter_str2 += filter_str
     print(filter_str1)
-    print('Threshold heatmap: %d' % threshold)
+    print('Threshold pair = %d' % threshold)
     
     # Filter data and aggregate by grid
     data_filtered1 = data1_.filter(filter_str1)
     data_filtered2 = data2_.filter(filter_str2)
     data_filtered = data_filtered1.union(data_filtered2)
-    data1 = data_filtered.withColumn("agg_latitude", (((col("latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
-                         .withColumn("agg_longitude", (((col("longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
-    data2 = data1.groupBy("agg_latitude", "agg_longitude").agg(sum("sum_geton").alias("sum_geton"), sum("sum_getoff").alias("sum_getoff"))
+    data1 = data_filtered.withColumn("agg_on_latitude", (((col("on_latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
+                         .withColumn("agg_on_longitude", (((col("on_longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float")) \
+                         .withColumn("agg_off_latitude", (((col("off_latitude") - y1)/lat_step).cast("long")*lat_step + y1 + lat_step/2.0).cast("decimal(38,5)").cast("float")) \
+                         .withColumn("agg_off_longitude", (((col("off_longitude") - x2)/lng_step).cast("long")*lng_step + x2 + lng_step/2.0).cast("decimal(38,5)").cast("float"))
+    data2 = data1.groupBy("agg_on_latitude", "agg_on_longitude", "agg_off_latitude", "agg_off_longitude").agg(sum("count").alias("count"))
     
-    if direction == 0:
-        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_geton").alias("count")).where("count >= " + str(threshold)) \
-                 .collect()
-    elif direction == 1:
-        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), col("sum_getoff").alias("count")).where("count >= " + str(threshold)) \
-                 .collect()
-    else:
-        result = data2.select(col("agg_latitude").alias("lat"), col("agg_longitude").alias("lng"), (col("sum_geton") + col("sum_getoff")).alias("count")).where("count >= " + str(threshold)) \
+    if True:
+        result = data2.select(col("agg_on_latitude").alias("lat_start"), col("agg_on_longitude").alias("lng_start"), \
+                              col("agg_off_latitude").alias("lat_end"), col("agg_off_longitude").alias("lng_end"), \
+                              col("count").alias("count")).where("count >= " + str(threshold)) \
                  .collect()
     print(len(result))
     print(result[0:10])
     return result
 
-# Main function - used for testing only
+# Main function, used for testing only
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file")
